@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="iconBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1030"/>
+      <stop offset="100%" style="stop-color:#0f0a1a"/>
+    </linearGradient>
+    <linearGradient id="prism" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#a855f7"/>
+      <stop offset="100%" style="stop-color:#7c3aed"/>
+    </linearGradient>
+    <filter id="g">
+      <feGaussianBlur stdDeviation="2.5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="bg">
+      <feGaussianBlur stdDeviation="12" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="256" height="256" rx="56" fill="url(#iconBg)"/>
+
+  <!-- Ambient glow -->
+  <ellipse cx="128" cy="128" rx="70" ry="70" fill="#a855f7" opacity="0.08" filter="url(#bg)"/>
+
+  <!-- Outer hexagon (prism) -->
+  <polygon points="128,52 184,86 184,170 128,204 72,170 72,86" fill="url(#prism)" opacity="0.12" stroke="#a855f7" stroke-width="1.5"/>
+
+  <!-- Middle hexagon -->
+  <polygon points="128,68 172,96 172,160 128,188 84,160 84,96" fill="none" stroke="#c084fc" stroke-width="2" opacity="0.5" filter="url(#g)"/>
+
+  <!-- Inner hexagon -->
+  <polygon points="128,88 155,107 155,149 128,168 101,149 101,107" fill="none" stroke="#a855f7" stroke-width="1" opacity="0.3"/>
+
+  <!-- Eye/lens -->
+  <ellipse cx="128" cy="128" rx="20" ry="13" fill="none" stroke="#e9d5ff" stroke-width="2" opacity="0.85" filter="url(#g)"/>
+  <circle cx="128" cy="128" r="6" fill="#e9d5ff" opacity="0.9" filter="url(#g)"/>
+  <circle cx="128" cy="128" r="2.5" fill="#ffffff"/>
+
+  <!-- Four perspective beams -->
+  <!-- Yellow (Business) - top right -->
+  <line x1="145" y1="117" x2="178" y2="76" stroke="#eab308" stroke-width="1.8" opacity="0.6" filter="url(#g)"/>
+  <circle cx="182" cy="71" r="5" fill="#eab308" opacity="0.7"/>
+
+  <!-- Green (Financial) - bottom right -->
+  <line x1="148" y1="130" x2="186" y2="140" stroke="#22c55e" stroke-width="1.8" opacity="0.6" filter="url(#g)"/>
+  <circle cx="190" cy="142" r="5" fill="#22c55e" opacity="0.7"/>
+
+  <!-- Blue (Technical) - bottom left -->
+  <line x1="108" y1="130" x2="70" y2="140" stroke="#3b82f6" stroke-width="1.8" opacity="0.6" filter="url(#g)"/>
+  <circle cx="66" cy="142" r="5" fill="#3b82f6" opacity="0.7"/>
+
+  <!-- Red (Devil's Advocate) - top left -->
+  <line x1="111" y1="117" x2="78" y2="76" stroke="#ef4444" stroke-width="1.8" opacity="0.6" filter="url(#g)"/>
+  <circle cx="74" cy="71" r="5" fill="#ef4444" opacity="0.7"/>
+</svg>

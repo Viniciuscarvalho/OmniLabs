@@ -1,0 +1,136 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f0a1a;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#1a1030;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0d0818;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="prismGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#a855f7;stop-opacity:0.9" />
+      <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:0.9" />
+    </linearGradient>
+    <linearGradient id="glowPurple" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#c084fc;stop-opacity:0.4" />
+      <stop offset="100%" style="stop-color:#a855f7;stop-opacity:0" />
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="softGlow">
+      <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="bigGlow">
+      <feGaussianBlur stdDeviation="20" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="400" fill="url(#bg)" rx="12"/>
+
+  <!-- Subtle grid pattern -->
+  <g opacity="0.04" stroke="#a855f7" stroke-width="0.5">
+    <line x1="0" y1="50" x2="1200" y2="50"/><line x1="0" y1="100" x2="1200" y2="100"/>
+    <line x1="0" y1="150" x2="1200" y2="150"/><line x1="0" y1="200" x2="1200" y2="200"/>
+    <line x1="0" y1="250" x2="1200" y2="250"/><line x1="0" y1="300" x2="1200" y2="300"/>
+    <line x1="0" y1="350" x2="1200" y2="350"/>
+    <line x1="100" y1="0" x2="100" y2="400"/><line x1="200" y1="0" x2="200" y2="400"/>
+    <line x1="300" y1="0" x2="300" y2="400"/><line x1="400" y1="0" x2="400" y2="400"/>
+    <line x1="500" y1="0" x2="500" y2="400"/><line x1="600" y1="0" x2="600" y2="400"/>
+    <line x1="700" y1="0" x2="700" y2="400"/><line x1="800" y1="0" x2="800" y2="400"/>
+    <line x1="900" y1="0" x2="900" y2="400"/><line x1="1000" y1="0" x2="1000" y2="400"/>
+    <line x1="1100" y1="0" x2="1100" y2="400"/>
+  </g>
+
+  <!-- Ambient glow behind prism -->
+  <ellipse cx="280" cy="200" rx="120" ry="120" fill="#a855f7" opacity="0.06" filter="url(#bigGlow)"/>
+
+  <!-- Central Prism (hexagonal) -->
+  <polygon points="280,110 340,155 340,245 280,290 220,245 220,155" fill="url(#prismGrad)" opacity="0.15" stroke="#a855f7" stroke-width="1"/>
+  <polygon points="280,125 330,163 330,237 280,275 230,237 230,163" fill="none" stroke="#c084fc" stroke-width="1.5" opacity="0.6" filter="url(#glow)"/>
+
+  <!-- Inner prism detail -->
+  <polygon points="280,145 315,172 315,228 280,255 245,228 245,172" fill="none" stroke="#a855f7" stroke-width="1" opacity="0.3"/>
+
+  <!-- Eye/lens in center of prism -->
+  <ellipse cx="280" cy="200" rx="22" ry="14" fill="none" stroke="#e9d5ff" stroke-width="1.5" opacity="0.8" filter="url(#glow)"/>
+  <circle cx="280" cy="200" r="6" fill="#e9d5ff" opacity="0.9" filter="url(#glow)"/>
+  <circle cx="280" cy="200" r="2.5" fill="#ffffff" opacity="1"/>
+
+  <!-- Output beams from prism to agent nodes -->
+  <!-- Business (yellow) -->
+  <line x1="340" y1="160" x2="440" y2="105" stroke="#eab308" stroke-width="1.5" opacity="0.5" filter="url(#glow)"/>
+  <circle cx="455" cy="97" r="18" fill="#eab308" opacity="0.12" stroke="#eab308" stroke-width="1.2" filter="url(#glow)"/>
+  <circle cx="455" cy="97" r="4" fill="#eab308" opacity="0.8"/>
+  <text x="480" y="101" font-family="system-ui, -apple-system, sans-serif" font-size="11" fill="#eab308" opacity="0.7" font-weight="500">Business</text>
+
+  <!-- Financial (green) -->
+  <line x1="340" y1="190" x2="440" y2="175" stroke="#22c55e" stroke-width="1.5" opacity="0.5" filter="url(#glow)"/>
+  <circle cx="455" cy="170" r="18" fill="#22c55e" opacity="0.12" stroke="#22c55e" stroke-width="1.2" filter="url(#glow)"/>
+  <circle cx="455" cy="170" r="4" fill="#22c55e" opacity="0.8"/>
+  <text x="480" y="174" font-family="system-ui, -apple-system, sans-serif" font-size="11" fill="#22c55e" opacity="0.7" font-weight="500">Financial</text>
+
+  <!-- Technical (blue) -->
+  <line x1="340" y1="220" x2="440" y2="240" stroke="#3b82f6" stroke-width="1.5" opacity="0.5" filter="url(#glow)"/>
+  <circle cx="455" cy="243" r="18" fill="#3b82f6" opacity="0.12" stroke="#3b82f6" stroke-width="1.2" filter="url(#glow)"/>
+  <circle cx="455" cy="243" r="4" fill="#3b82f6" opacity="0.8"/>
+  <text x="480" y="247" font-family="system-ui, -apple-system, sans-serif" font-size="11" fill="#3b82f6" opacity="0.7" font-weight="500">Technical</text>
+
+  <!-- Devil's Advocate (red) -->
+  <line x1="340" y1="250" x2="440" y2="310" stroke="#ef4444" stroke-width="1.5" opacity="0.5" filter="url(#glow)"/>
+  <circle cx="455" cy="313" r="18" fill="#ef4444" opacity="0.12" stroke="#ef4444" stroke-width="1.2" filter="url(#glow)"/>
+  <circle cx="455" cy="313" r="4" fill="#ef4444" opacity="0.8"/>
+  <text x="480" y="317" font-family="system-ui, -apple-system, sans-serif" font-size="11" fill="#ef4444" opacity="0.7" font-weight="500">Adversarial</text>
+
+  <!-- Convergence lines from agents to synthesis -->
+  <line x1="540" y1="97" x2="620" y2="200" stroke="#eab308" stroke-width="0.8" opacity="0.25" stroke-dasharray="4,4"/>
+  <line x1="540" y1="170" x2="620" y2="200" stroke="#22c55e" stroke-width="0.8" opacity="0.25" stroke-dasharray="4,4"/>
+  <line x1="540" y1="243" x2="620" y2="200" stroke="#3b82f6" stroke-width="0.8" opacity="0.25" stroke-dasharray="4,4"/>
+  <line x1="540" y1="313" x2="620" y2="200" stroke="#ef4444" stroke-width="0.8" opacity="0.25" stroke-dasharray="4,4"/>
+
+  <!-- Synthesis node -->
+  <circle cx="635" cy="200" r="14" fill="#a855f7" opacity="0.15" stroke="#a855f7" stroke-width="1.2" filter="url(#glow)"/>
+  <circle cx="635" cy="200" r="4" fill="#a855f7" opacity="0.8"/>
+
+  <!-- Arrow to report -->
+  <line x1="652" y1="200" x2="690" y2="200" stroke="#c084fc" stroke-width="1.2" opacity="0.4" marker-end="url(#arrowhead)"/>
+
+  <!-- Report icon -->
+  <rect x="695" y="182" width="24" height="36" rx="3" fill="none" stroke="#e9d5ff" stroke-width="1.2" opacity="0.5"/>
+  <line x1="701" y1="192" x2="713" y2="192" stroke="#e9d5ff" stroke-width="0.8" opacity="0.4"/>
+  <line x1="701" y1="198" x2="713" y2="198" stroke="#e9d5ff" stroke-width="0.8" opacity="0.4"/>
+  <line x1="701" y1="204" x2="710" y2="204" stroke="#e9d5ff" stroke-width="0.8" opacity="0.4"/>
+
+  <!-- Title -->
+  <text x="790" y="170" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="52" fill="#ffffff" font-weight="700" letter-spacing="-1">OmniLabs</text>
+
+  <!-- Subtitle -->
+  <text x="790" y="205" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="16" fill="#c084fc" font-weight="400" letter-spacing="0.5">Multi-Perspective Strategic Analysis</text>
+
+  <!-- Tagline -->
+  <text x="790" y="235" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="13" fill="#9ca3af" font-weight="400">Agent teams framework for Claude Code</text>
+
+  <!-- Decorative particles -->
+  <circle cx="150" cy="80" r="1.5" fill="#a855f7" opacity="0.3"/>
+  <circle cx="180" cy="320" r="1" fill="#c084fc" opacity="0.25"/>
+  <circle cx="100" cy="250" r="1.5" fill="#7c3aed" opacity="0.2"/>
+  <circle cx="750" cy="320" r="1" fill="#a855f7" opacity="0.2"/>
+  <circle cx="1050" cy="100" r="1.5" fill="#c084fc" opacity="0.15"/>
+  <circle cx="1100" cy="300" r="1" fill="#a855f7" opacity="0.2"/>
+  <circle cx="950" cy="350" r="1.5" fill="#7c3aed" opacity="0.15"/>
+  <circle cx="850" cy="80" r="1" fill="#c084fc" opacity="0.2"/>
+
+  <!-- Bottom accent line -->
+  <rect x="790" y="248" width="60" height="2" rx="1" fill="#a855f7" opacity="0.4"/>
+</svg>
