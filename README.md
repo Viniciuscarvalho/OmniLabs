@@ -99,15 +99,16 @@ See [`agent-team-prompt.md`](agent-team-prompt.md) for individual agent prompts 
 
 ### Individual Agents
 
-You can also invoke agents individually:
+For focused deep-dives, use the detailed prompt files — each contains comprehensive evaluation criteria and structured output expectations:
 
-```
-Use the technical-architecture agent to evaluate this project's architecture.
-```
+| Agent | Prompt File | What It Covers |
+|-------|-------------|----------------|
+| Business & Product | [`business-product-analysis.md`](business-product-analysis.md) | Product definition, market opportunity, PMF signals, competitive landscape, GTM, business model, risks |
+| Financial & Cost | [`financial-cost-analysis.md`](financial-cost-analysis.md) | Infrastructure inventory, third-party costs, TCO at 4 scales, unit economics, optimization, runway |
+| Technical Architecture | [`technical-architecture-review.md`](technical-architecture-review.md) | 6-dimension scoring (scalability, reliability, maintainability, security, observability, operability) |
+| Devil's Advocate | [`devil-advocate-challenge.md`](devil-advocate-challenge.md) | Assumption deconstruction, architectural fragility, pre-mortem, competitor counterattack, uncomfortable questions |
 
-```
-Use the devils-advocate agent to stress-test this decision.
-```
+Copy the contents of any prompt file and paste it into Claude Code.
 
 ---
 
@@ -164,6 +165,10 @@ OmniLabs/
 │   ├── settings.json
 │   └── CLAUDE.md
 ├── agent-team-prompt.md
+├── business-product-analysis.md
+├── financial-cost-analysis.md
+├── technical-architecture-review.md
+├── devil-advocate-challenge.md
 ├── examples/
 │   ├── saas-evaluation.md
 │   ├── tech-migration.md
