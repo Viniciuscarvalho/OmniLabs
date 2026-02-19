@@ -28,29 +28,16 @@ Run analysts 1-4 in parallel. Agent 5 (lead-synthesis) should start only after a
 
 ## Individual Agent Prompts
 
-### Business & Product Analysis Only
+For deeper, more detailed individual analyses, use the dedicated prompt files below. Each contains a comprehensive, structured prompt with specific evaluation criteria and output expectations.
 
-```
-Use the business-product agent to analyze this project's market opportunity, product-market fit, and competitive positioning. Read the codebase to understand what it actually does, then evaluate its business viability.
-```
+| Agent | Prompt File |
+|-------|-------------|
+| Business & Product | [`business-product-analysis.md`](business-product-analysis.md) |
+| Financial & Cost | [`financial-cost-analysis.md`](financial-cost-analysis.md) |
+| Technical Architecture | [`technical-architecture-review.md`](technical-architecture-review.md) |
+| Devil's Advocate | [`devil-advocate-challenge.md`](devil-advocate-challenge.md) |
 
-### Financial & Cost Analysis Only
-
-```
-Use the financial-cost agent to model the costs of this project. Examine the codebase for dependencies, infrastructure configs, and service integrations. Calculate TCO at 1K, 10K, 100K, and 1M user scales.
-```
-
-### Technical Architecture Review Only
-
-```
-Use the technical-architecture agent to evaluate this project's architecture. Score it across 6 dimensions (scalability, reliability, maintainability, security, observability, operability) with evidence from the actual code.
-```
-
-### Devil's Advocate Challenge Only
-
-```
-Use the devils-advocate agent to stress-test this project. Challenge assumptions baked into the architecture, identify blind spots, and run a pre-mortem analysis. Every challenge must be backed by evidence from the code.
-```
+Copy the contents of any prompt file above and paste it into Claude Code for a focused deep-dive on that dimension.
 
 ---
 
