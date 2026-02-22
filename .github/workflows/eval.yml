@@ -1,0 +1,85 @@
+name: Run Evaluations
+
+on:
+  pull_request:
+    paths:
+      - '.claude/agents/**'
+      - 'evaluation/graders/**'
+      - 'evaluation/tasks/**'
+
+jobs:
+  validate-graders:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Make grader scripts executable
+        run: chmod +x evaluation/graders/code-based/*.sh
+
+      - name: Validate grader script syntax
+        run: |
+          echo "=== Checking grader script syntax ==="
+          for grader in evaluation/graders/code-based/grade-*.sh; do
+            agent=$(basename "$grader" | sed 's/grade-//;s/\.sh//')
+            echo "Checking grader: $agent"
+            if ! bash -n "$grader"; then
+              echo "FAIL: Syntax error in $grader"
+              exit 1
+            fi
+            echo "PASS: $grader"
+          done
+
+      - name: Validate common.sh syntax
+        run: |
+          echo "Checking common.sh..."
+          bash -n evaluation/graders/code-based/common.sh
+          echo "PASS: common.sh"
+
+      - name: Validate harness script syntax
+        run: |
+          echo "=== Checking harness scripts ==="
+          for script in evaluation/harness/*.sh; do
+            echo "Checking $script..."
+            if ! bash -n "$script"; then
+              echo "FAIL: Syntax error in $script"
+              exit 1
+            fi
+            echo "PASS: $script"
+          done
+
+      - name: Validate rubric structure
+        run: |
+          echo "=== Checking model-based rubrics ==="
+          for rubric in evaluation/graders/model-based/rubric-*.md; do
+            echo "Checking $rubric..."
+            errors=0
+
+            if ! grep -q "## Dimension" "$rubric"; then
+              echo "  FAIL: Missing dimensions in $rubric"
+              errors=1
+            fi
+
+            if ! grep -q "## Scoring" "$rubric"; then
+              echo "  FAIL: Missing scoring section in $rubric"
+              errors=1
+            fi
+
+            if ! grep -q "Verdict:" "$rubric"; then
+              echo "  FAIL: Missing verdict format in $rubric"
+              errors=1
+            fi
+
+            # Check that Good/Bad examples exist
+            if ! grep -q "Good Example" "$rubric"; then
+              echo "  WARN: Missing Good Example in $rubric"
+            fi
+
+            if ! grep -q "Bad Example" "$rubric"; then
+              echo "  WARN: Missing Bad Example in $rubric"
+            fi
+
+            if [ "$errors" -eq 1 ]; then
+              exit 1
+            fi
+            echo "  PASS: $rubric"
+          done

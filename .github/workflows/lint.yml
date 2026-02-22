@@ -1,0 +1,102 @@
+name: Lint Agent & Eval Files
+
+on:
+  pull_request:
+    paths:
+      - '.claude/agents/**'
+      - 'evaluation/**'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate agent frontmatter
+        run: |
+          echo "=== Validating agent files ==="
+          exit_code=0
+          for agent in .claude/agents/*.md; do
+            echo "Checking $agent..."
+
+            # Check YAML frontmatter exists
+            if ! head -1 "$agent" | grep -q "^---$"; then
+              echo "FAIL: Missing frontmatter in $agent"
+              exit_code=1
+              continue
+            fi
+
+            # Check required fields
+            for field in "name:" "description:" "model:"; do
+              if ! grep -q "^${field}" "$agent"; then
+                echo "FAIL: Missing '${field}' in $agent"
+                exit_code=1
+              fi
+            done
+
+            # Check required sections
+            if ! grep -qE "## (Analysis|Synthesis|Contrarian Thinking) Framework" "$agent"; then
+              echo "FAIL: Missing framework section in $agent"
+              exit_code=1
+            fi
+
+            if ! grep -qE "## (Output Format|OmniLabs Report Format)" "$agent"; then
+              echo "FAIL: Missing output format in $agent"
+              exit_code=1
+            fi
+
+            if ! grep -q "## Quality Checklist" "$agent"; then
+              echo "FAIL: Missing quality checklist in $agent"
+              exit_code=1
+            fi
+
+            echo "PASS: $agent"
+          done
+          exit $exit_code
+
+      - name: Validate eval task frontmatter
+        run: |
+          echo "=== Validating eval tasks ==="
+          exit_code=0
+          for task in evaluation/tasks/*/task-*.md; do
+            [ -f "$task" ] || continue
+            echo "Checking $task..."
+
+            if ! head -1 "$task" | grep -q "^---$"; then
+              echo "FAIL: Missing frontmatter in $task"
+              exit_code=1
+              continue
+            fi
+
+            for field in "agent:" "type:"; do
+              if ! grep -q "^${field}" "$task"; then
+                echo "FAIL: Missing '${field}' in $task"
+                exit_code=1
+              fi
+            done
+
+            for section in "## Input" "## Expected Behaviors" "## Success Criteria"; do
+              if ! grep -q "$section" "$task"; then
+                echo "FAIL: Missing '${section}' in $task"
+                exit_code=1
+              fi
+            done
+
+            echo "PASS: $task"
+          done
+          exit $exit_code
+
+      - name: Validate grader script syntax
+        run: |
+          echo "=== Validating grader scripts ==="
+          exit_code=0
+          for script in evaluation/graders/code-based/*.sh; do
+            echo "Checking $script..."
+            if ! bash -n "$script"; then
+              echo "FAIL: Syntax error in $script"
+              exit_code=1
+            else
+              echo "PASS: $script"
+            fi
+          done
+          exit $exit_code

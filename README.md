@@ -158,6 +158,83 @@ The lead synthesis agent produces a structured executive report:
 
 ---
 
+## Evaluation Framework
+
+**Evals are the tests for prompts.** Just like unit tests validate code, evals validate that agent behavior stays correct as prompts evolve. OmniLabs ships with a complete, shell-only evaluation framework — no Python, no Node, no runtime dependencies.
+
+### Why Agent Evals?
+
+Agent outputs are non-deterministic. The same prompt can produce different results across runs. Without evals, you can't know if a prompt change improved or regressed agent quality. OmniLabs evals solve this with two layers:
+
+- **Code-based graders** (deterministic) — bash scripts that validate structural contracts: required sections exist, scores are in range, tables have correct columns, cross-references are present. These run in CI on every PR.
+- **Model-based rubrics** (qualitative) — LLM-as-Judge scoring across 5 weighted dimensions per agent. These measure depth, evidence grounding, actionability, and intellectual honesty. Run manually with Claude.
+
+### What Gets Evaluated
+
+Each of the 5 agents has its own eval suite:
+
+| Agent | Tasks | Code Grader Checks | Rubric Dimensions |
+|-------|-------|--------------------|-------------------|
+| `business-product` | 4 (SaaS, marketplace, empty repo, OSS tool) | Score format, 7 sections, moat label, TAM/SAM/SOM, competitors | Analysis Depth, Code Grounding, Actionability, Risk Awareness, Honesty |
+| `financial-cost` | 4 (AWS stack, serverless, no infra, multi-cloud) | Score format, 6 sections, cost table, scaling table, 4 scale tiers | Financial Rigor, Code Grounding, Scaling Accuracy, Optimization, Risk |
+| `technical-architecture` | 4 (monolith, microservices, no tests, legacy PHP) | Score format, 6 dimension scores, severity labels, timeline sections | Technical Accuracy, Code Grounding, Coverage, Prioritization, Constructiveness |
+| `devils-advocate` | 4 (overconfident analysts, minimal findings, strong project, no competitors) | Score format, 7 sections, risk heat map, failure scenarios, cross-references | Challenge Thoroughness, Evidence Quality, Cross-References, Blind Spots, Strengthening |
+| `lead-synthesis` | 3 (consensus, conflicting signals, mixed signals) | GO/NO-GO decision, confidence, composite score, 4 analyst references, roadmap | Synthesis Quality, Decision Clarity, Conflict Resolution, Completeness, Actionability |
+
+**19 tasks total** — covering happy-path, edge-case, and negative scenarios.
+**3 golden datasets** — reference projects (SaaS, high-risk DeFi, pre-MVP) with expected analysis patterns per agent.
+
+### Quick Start
+
+```bash
+# Install evals (if not already installed)
+bash install.sh --with-evals
+
+# Run all evaluations
+bash evaluation/harness/run-all.sh
+
+# Run for a single agent
+bash evaluation/harness/run-all.sh --agent business-product
+
+# Grade an existing output file (skip agent execution)
+bash evaluation/harness/run-eval.sh --agent technical-architecture \
+  --grader-only --output path/to/output.md
+
+# Generate a report with pass rates and regressions
+bash evaluation/harness/report.sh
+```
+
+### Eval Architecture
+
+```
+evaluation/
+├── tasks/                    19 test scenarios (4 per analyst + 3 for synthesis)
+│   ├── business-product/     Happy-path, marketplace edge, empty repo, no revenue
+│   ├── financial-cost/       AWS stack, serverless, no infra, multi-cloud
+│   ├── technical-architecture/  Monolith, microservices, no tests, legacy
+│   ├── devils-advocate/      Overconfident, minimal, strong project, no competitors
+│   └── lead-synthesis/       Consensus, conflicting, mixed signals
+├── graders/
+│   ├── code-based/           Deterministic bash graders (CI-ready)
+│   │   ├── common.sh         Shared utilities (check_section, check_score, etc.)
+│   │   └── grade-*.sh        One grader per agent
+│   └── model-based/          LLM-as-Judge rubrics (manual)
+│       └── rubric-*.md       5 dimensions per agent, weighted scoring
+├── datasets/                 Golden reference projects
+│   ├── golden-saas-project.md       B2B SaaS — balanced analysis expected
+│   ├── golden-risky-project.md      DeFi — NO-GO expected
+│   └── golden-early-stage.md        Pre-MVP — conditional analysis expected
+├── harness/                  Orchestration scripts
+│   ├── run-eval.sh           Single task runner
+│   ├── run-all.sh            Suite runner with aggregation
+│   └── report.sh             Report generator with regression detection
+└── results/                  Output directory
+```
+
+See [docs/evaluation-guide.md](docs/evaluation-guide.md) for the full guide, [docs/architecture.md](docs/architecture.md) for system design, and [docs/contributing-evals.md](docs/contributing-evals.md) for adding new evals.
+
+---
+
 ## Project Structure
 
 ```
@@ -171,6 +248,19 @@ OmniLabs/
 │   │   └── lead-synthesis.md            # 🟣 Lead Synthesis (Opus)
 │   ├── settings.json
 │   └── CLAUDE.md
+├── evaluation/
+│   ├── tasks/                           # Eval test cases per agent
+│   ├── graders/
+│   │   ├── code-based/                  # Deterministic bash graders
+│   │   └── model-based/                 # LLM-as-Judge rubrics
+│   ├── datasets/                        # Golden reference projects
+│   ├── harness/                         # Eval runner scripts
+│   └── results/                         # Eval output
+├── docs/
+│   ├── architecture.md                  # System architecture
+│   ├── contributing-evals.md            # Guide for adding evals
+│   └── evaluation-guide.md             # How to run and interpret evals
+├── .github/workflows/                   # CI: lint + eval validation
 ├── business-product-analysis.md         # Detailed prompt: business
 ├── financial-cost-analysis.md           # Detailed prompt: financial
 ├── technical-architecture-review.md     # Detailed prompt: architecture

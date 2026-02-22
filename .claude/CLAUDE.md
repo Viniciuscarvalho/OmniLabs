@@ -28,3 +28,14 @@ OmniLabs is a plug-and-play agent teams framework for Claude Code that provides 
 - **Constructive challenge**: The devil's advocate strengthens ideas, doesn't kill them
 - **Actionable output**: Every report includes a clear decision and implementation roadmap
 - **Language-agnostic**: Works with any tech stack — agents adapt to what they find
+
+## Evaluation Framework
+
+OmniLabs includes evals to validate agent output quality. See `docs/evaluation-guide.md` for details.
+
+- **Code-based graders**: `evaluation/graders/code-based/grade-<agent>.sh` — deterministic structural validation
+- **Model-based rubrics**: `evaluation/graders/model-based/rubric-<agent>.md` — LLM-as-Judge quality scoring
+- **Tasks**: `evaluation/tasks/<agent>/task-*.md` — test scenarios with expected behaviors
+- **Golden datasets**: `evaluation/datasets/golden-*.md` — reference project descriptions
+- **Run evals**: `bash evaluation/harness/run-all.sh`
+- **Docs**: `docs/architecture.md`, `docs/contributing-evals.md`, `docs/evaluation-guide.md`
