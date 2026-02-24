@@ -1,5 +1,42 @@
 {
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/ollama-status.sh"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/continuous-learning-activator.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "mcpServers": {
+    "docs-mcp-server": {
+      "command": "npx",
+      "args": [
+        "@arabold/docs-mcp-server@latest",
+        "--read-only",
+        "--telemetry=false"
+      ],
+      "env": {
+        "OPENAI_API_KEY": "ollama",
+        "OPENAI_API_BASE": "http://localhost:11434/v1",
+        "DOCS_MCP_EMBEDDING_MODEL": "openai:nomic-embed-text"
+      }
+    }
   }
 }

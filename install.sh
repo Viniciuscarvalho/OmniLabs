@@ -49,8 +49,22 @@ DOCS_FILES=(
   "evaluation-guide.md"
 )
 
+LEARNING_SKILL_FILES=(
+  "SKILL.md"
+)
+
+LEARNING_REFERENCE_FILES=(
+  "templates.md"
+)
+
+LEARNING_HOOK_FILES=(
+  "continuous-learning-activator.sh"
+  "ollama-status.sh"
+)
+
 SETTINGS_FILE='.claude/settings.json'
 WITH_EVALS=0
+WITH_LEARNING=0
 
 # Colors
 RED='\033[0;31m'
@@ -75,11 +89,12 @@ print_info()    { echo -e "${BLUE}→${NC} $1"; }
 print_error()   { echo -e "${RED}✗${NC} $1"; }
 
 print_help() {
-  echo "Usage: bash install.sh [--with-evals] [--help]"
+  echo "Usage: bash install.sh [--with-evals] [--with-learning] [--help]"
   echo ""
   echo "Options:"
-  echo "  --with-evals   Also install the evaluation framework (graders, tasks, datasets, docs)"
-  echo "  --help         Show this help message"
+  echo "  --with-evals     Also install the evaluation framework (graders, tasks, datasets, docs)"
+  echo "  --with-learning  Also install the continuous learning system (Ollama + docs-mcp-server)"
+  echo "  --help           Show this help message"
 }
 
 check_dependencies() {
@@ -247,6 +262,151 @@ install_evals() {
   print_success "Evaluation framework installed!"
 }
 
+install_learning() {
+  print_info "Installing continuous learning system..."
+
+  # Create directories
+  mkdir -p .claude/skills/continuous-learning/references
+  mkdir -p .claude/hooks
+  mkdir -p .claude/memories
+
+  # Download skill files
+  for file in "${LEARNING_SKILL_FILES[@]}"; do
+    if [ -f ".claude/skills/continuous-learning/${file}" ]; then
+      print_warning "Skipping skill ${file} (already exists)"
+    else
+      print_info "Downloading skill: ${file}..."
+      curl -sL "${OMNILABS_REPO}/.claude/skills/continuous-learning/${file}" \
+        -o ".claude/skills/continuous-learning/${file}"
+      print_success "Installed ${file}"
+    fi
+  done
+
+  # Download reference files
+  for file in "${LEARNING_REFERENCE_FILES[@]}"; do
+    if [ -f ".claude/skills/continuous-learning/references/${file}" ]; then
+      print_warning "Skipping reference ${file} (already exists)"
+    else
+      print_info "Downloading reference: ${file}..."
+      curl -sL "${OMNILABS_REPO}/.claude/skills/continuous-learning/references/${file}" \
+        -o ".claude/skills/continuous-learning/references/${file}"
+      print_success "Installed ${file}"
+    fi
+  done
+
+  # Download hook scripts
+  for hook in "${LEARNING_HOOK_FILES[@]}"; do
+    if [ -f ".claude/hooks/${hook}" ]; then
+      print_warning "Skipping hook ${hook} (already exists)"
+    else
+      print_info "Downloading hook: ${hook}..."
+      curl -sL "${OMNILABS_REPO}/.claude/hooks/${hook}" \
+        -o ".claude/hooks/${hook}"
+      chmod +x ".claude/hooks/${hook}"
+      print_success "Installed ${hook}"
+    fi
+  done
+
+  # Create .gitkeep in memories
+  touch .claude/memories/.gitkeep
+
+  # Download continuous-learning docs
+  if [ ! -f "docs/continuous-learning.md" ]; then
+    mkdir -p docs
+    curl -sL "${OMNILABS_REPO}/docs/continuous-learning.md" \
+      -o "docs/continuous-learning.md"
+    print_success "Installed docs/continuous-learning.md"
+  fi
+
+  # Update settings.json with hooks and MCP server
+  update_settings_for_learning
+
+  # Check prerequisites
+  check_ollama_prereqs
+
+  print_success "Continuous learning system installed!"
+}
+
+update_settings_for_learning() {
+  if [ ! -f "${SETTINGS_FILE}" ]; then
+    print_info "Creating settings.json with learning config..."
+    curl -sL "${OMNILABS_REPO}/.claude/settings.json" -o "${SETTINGS_FILE}"
+    return
+  fi
+
+  # Check if hooks are already configured
+  if grep -q '"hooks"' "${SETTINGS_FILE}" 2>/dev/null; then
+    print_success "settings.json already has hooks configured"
+    return
+  fi
+
+  # Merge using python3 (available on macOS and most Linux)
+  if command -v python3 &> /dev/null; then
+    print_info "Merging learning config into settings.json..."
+    python3 -c "
+import json
+with open('${SETTINGS_FILE}') as f:
+    config = json.load(f)
+config['hooks'] = {
+    'SessionStart': [{'hooks': [{'type': 'command', 'command': 'bash .claude/hooks/ollama-status.sh'}]}],
+    'PreToolUse': [{'hooks': [{'type': 'command', 'command': 'bash .claude/hooks/continuous-learning-activator.sh'}]}]
+}
+config['mcpServers'] = {
+    'docs-mcp-server': {
+        'command': 'npx',
+        'args': ['@arabold/docs-mcp-server@latest', '--read-only', '--telemetry=false'],
+        'env': {
+            'OPENAI_API_KEY': 'ollama',
+            'OPENAI_API_BASE': 'http://localhost:11434/v1',
+            'DOCS_MCP_EMBEDDING_MODEL': 'openai:nomic-embed-text'
+        }
+    }
+}
+with open('${SETTINGS_FILE}', 'w') as f:
+    json.dump(config, f, indent=2)
+    f.write('\n')
+" 2>/dev/null && print_success "settings.json updated with hooks and MCP server" && return
+  fi
+
+  # Fallback: download the full settings file
+  print_warning "Could not merge settings.json automatically"
+  print_info "Downloading complete settings.json..."
+  curl -sL "${OMNILABS_REPO}/.claude/settings.json" -o "${SETTINGS_FILE}"
+  print_success "settings.json replaced with learning-enabled version"
+}
+
+check_ollama_prereqs() {
+  echo ""
+  print_info "Checking learning prerequisites..."
+
+  if command -v ollama &> /dev/null; then
+    print_success "Ollama CLI found"
+    if curl -s --max-time 3 http://localhost:11434/api/tags > /dev/null 2>&1; then
+      print_success "Ollama is running"
+      if curl -s --max-time 3 http://localhost:11434/api/tags 2>/dev/null | grep -q "nomic-embed-text"; then
+        print_success "nomic-embed-text model available"
+      else
+        print_warning "nomic-embed-text model not found"
+        print_info "Run: ollama pull nomic-embed-text"
+      fi
+    else
+      print_warning "Ollama is not running"
+      print_info "Run: ollama serve"
+    fi
+  else
+    print_warning "Ollama not found"
+    print_info "Install from: https://ollama.com"
+    print_info "Then run: ollama pull nomic-embed-text"
+  fi
+
+  if command -v npx &> /dev/null; then
+    print_success "npx found (for docs-mcp-server)"
+  else
+    print_warning "npx not found — docs-mcp-server requires Node.js"
+    print_info "Install Node.js from: https://nodejs.org"
+  fi
+}
+
 verify_installation() {
   echo ""
   print_info "Verifying installation..."
@@ -283,6 +443,17 @@ verify_installation() {
     fi
   fi
 
+  if [ "$WITH_LEARNING" -eq 1 ]; then
+    local learn_ok=1
+    [ -f ".claude/skills/continuous-learning/SKILL.md" ] || { print_error "Missing: SKILL.md"; learn_ok=0; }
+    [ -f ".claude/hooks/ollama-status.sh" ] || { print_error "Missing: ollama-status.sh"; learn_ok=0; }
+    [ -f ".claude/hooks/continuous-learning-activator.sh" ] || { print_error "Missing: activator hook"; learn_ok=0; }
+    [ -d ".claude/memories" ] || { print_error "Missing: memories/"; learn_ok=0; }
+    if [ "$learn_ok" -eq 1 ]; then
+      print_success "Continuous learning system present"
+    fi
+  fi
+
   echo ""
   echo -e "${GREEN}Installation complete!${NC}"
   echo ""
@@ -290,11 +461,22 @@ verify_installation() {
   echo "  1. Open Claude Code in this project"
   echo "  2. Copy the prompt from agent-team-prompt.md (or use the README)"
   echo "  3. Paste it to launch your OmniLabs analysis"
+  local step=4
   if [ "$WITH_EVALS" -eq 1 ]; then
-    echo "  4. Run evals: bash evaluation/harness/run-all.sh"
-  else
+    echo "  ${step}. Run evals: bash evaluation/harness/run-all.sh"
+    step=$((step + 1))
+  fi
+  if [ "$WITH_LEARNING" -eq 1 ]; then
+    echo "  ${step}. Start Ollama: ollama serve"
+    step=$((step + 1))
+    echo "  ${step}. Pull model: ollama pull nomic-embed-text"
+    step=$((step + 1))
+  fi
+  if [ "$WITH_EVALS" -eq 0 ] && [ "$WITH_LEARNING" -eq 0 ]; then
     echo ""
-    echo "To also install the evaluation framework, re-run with --with-evals"
+    echo "Optional add-ons:"
+    echo "  --with-evals     Install the evaluation framework"
+    echo "  --with-learning  Install the continuous learning system"
   fi
   echo ""
 }
@@ -303,6 +485,7 @@ verify_installation() {
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --with-evals) WITH_EVALS=1; shift ;;
+    --with-learning) WITH_LEARNING=1; shift ;;
     --help) print_help; exit 0 ;;
     *) echo "Unknown option: $1"; print_help; exit 1 ;;
   esac
@@ -323,6 +506,11 @@ fi
 if [ "$WITH_EVALS" -eq 1 ]; then
   echo ""
   install_evals
+fi
+
+if [ "$WITH_LEARNING" -eq 1 ]; then
+  echo ""
+  install_learning
 fi
 
 verify_installation

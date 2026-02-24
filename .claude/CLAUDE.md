@@ -39,3 +39,31 @@ OmniLabs includes evals to validate agent output quality. See `docs/evaluation-g
 - **Golden datasets**: `evaluation/datasets/golden-*.md` — reference project descriptions
 - **Run evals**: `bash evaluation/harness/run-all.sh`
 - **Docs**: `docs/architecture.md`, `docs/contributing-evals.md`, `docs/evaluation-guide.md`
+
+## Continuous Learning
+
+OmniLabs includes an optional continuous learning system that captures and retrieves knowledge across sessions. See `docs/continuous-learning.md` for the full guide.
+
+### Knowledge Base Search Protocol
+
+**Before starting any analysis task**, search the knowledge base for relevant prior findings:
+
+1. Use `mcp__docs-mcp-server__search_docs` with library `omnilabs-memories`
+2. Search with 2-3 keyword variations related to the current task
+3. Review the top results for applicable patterns, decisions, or findings
+
+### Knowledge Capture Protocol
+
+After completing analysis work, evaluate whether reusable knowledge was produced:
+
+- **Analysis patterns**: Recurring approaches to market sizing, cost modeling, architecture scoring
+- **Eval findings**: Insights about agent behavior, grader false positives/negatives
+- **Agent behavior**: Prompt engineering discoveries, output format nuances
+- **Framework decisions**: Architecture choices, convention changes
+
+Use the `continuous-learning` skill to capture memories to `.claude/memories/`.
+
+### Prerequisites
+
+- **Ollama** running locally with `nomic-embed-text` model
+- The system degrades gracefully if Ollama is unavailable

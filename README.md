@@ -77,7 +77,17 @@ The 4 analysts use **read-only tools** (Read, Grep, Glob, Bash) for safety. The 
 ### One-line install
 
 ```bash
+# Agents only
 curl -sL https://raw.githubusercontent.com/Viniciuscarvalho/OmniLabs/main/install.sh | bash
+
+# With evaluation framework
+curl -sL https://raw.githubusercontent.com/Viniciuscarvalho/OmniLabs/main/install.sh | bash -s -- --with-evals
+
+# With continuous learning
+curl -sL https://raw.githubusercontent.com/Viniciuscarvalho/OmniLabs/main/install.sh | bash -s -- --with-learning
+
+# Everything
+curl -sL https://raw.githubusercontent.com/Viniciuscarvalho/OmniLabs/main/install.sh | bash -s -- --with-evals --with-learning
 ```
 
 ### Manual install
@@ -235,6 +245,56 @@ See [docs/evaluation-guide.md](docs/evaluation-guide.md) for the full guide, [do
 
 ---
 
+## Continuous Learning (Optional)
+
+OmniLabs can learn from your analysis sessions. The continuous learning system captures patterns, decisions, and findings into a local knowledge base, then retrieves them via semantic search at the start of future sessions.
+
+### How It Works
+
+```
+Session Start → ollama-status hook → Check Ollama + sync memories
+      ↓
+  Search KB → docs-mcp-server → Semantic search over prior findings
+      ↓
+  Analysis → Do the work (agents analyze the codebase)
+      ↓
+  Capture → continuous-learning skill → Save to .claude/memories/
+      ↓
+  Index → Ollama embeds → docs-mcp-server indexes → Ready for next session
+```
+
+### Components
+
+| Component | Purpose |
+|-----------|---------|
+| **Ollama** | Local embedding model (`nomic-embed-text`) — no API keys needed |
+| **docs-mcp-server** | Semantic search MCP server using Ollama embeddings |
+| **continuous-learning skill** | Governs knowledge capture workflow and templates |
+| **activator hook** | Reminds about knowledge capture after each task |
+| **ollama-status hook** | Checks Ollama and syncs memories on session start |
+
+### Memory Types
+
+- **Learnings** (`learning_<topic>_<specific>.md`) — debugging discoveries, analysis patterns, workarounds
+- **Decisions** (`decision_<domain>_<topic>.md`) — architecture choices, conventions, scoring calibration
+
+Domains: `analysis`, `evaluation`, `agent`, `framework`, `tooling`, `debugging`
+
+### Prerequisites
+
+- [Ollama](https://ollama.com) running locally with `nomic-embed-text` model
+- Node.js (for npx to run docs-mcp-server)
+
+```bash
+ollama pull nomic-embed-text && ollama serve
+```
+
+The system degrades gracefully — if Ollama is not running, analysis works normally without KB search.
+
+See [docs/continuous-learning.md](docs/continuous-learning.md) for the full guide.
+
+---
+
 ## Project Structure
 
 ```
@@ -246,6 +306,13 @@ OmniLabs/
 │   │   ├── technical-architecture.md    # 🔵 Technical Architecture
 │   │   ├── devils-advocate.md           # 🔴 Devil's Advocate
 │   │   └── lead-synthesis.md            # 🟣 Lead Synthesis (Opus)
+│   ├── skills/continuous-learning/      # Knowledge capture skill
+│   │   ├── SKILL.md
+│   │   └── references/templates.md
+│   ├── hooks/                           # Session & tool hooks
+│   │   ├── ollama-status.sh
+│   │   └── continuous-learning-activator.sh
+│   ├── memories/                        # Knowledge base (markdown files)
 │   ├── settings.json
 │   └── CLAUDE.md
 ├── evaluation/
@@ -259,7 +326,8 @@ OmniLabs/
 ├── docs/
 │   ├── architecture.md                  # System architecture
 │   ├── contributing-evals.md            # Guide for adding evals
-│   └── evaluation-guide.md             # How to run and interpret evals
+│   ├── evaluation-guide.md             # How to run and interpret evals
+│   └── continuous-learning.md          # Continuous learning guide
 ├── .github/workflows/                   # CI: lint + eval validation
 ├── business-product-analysis.md         # Detailed prompt: business
 ├── financial-cost-analysis.md           # Detailed prompt: financial

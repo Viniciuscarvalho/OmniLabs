@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.2.0] - 2026-02-24
+
+### Added
+
+- Continuous learning system for capturing and retrieving knowledge across analysis sessions
+- Skill definition: `.claude/skills/continuous-learning/SKILL.md` with OmniLabs-adapted memory types
+- Memory templates: Learning, Decision, Analysis Pattern, Eval Finding
+- OmniLabs-specific memory domains: analysis, evaluation, agent, framework, tooling, debugging
+- SessionStart hook: Ollama status check and memory sync (`ollama-status.sh`)
+- PreToolUse hook: Knowledge capture reminder (`continuous-learning-activator.sh`)
+- MCP server integration: `docs-mcp-server` with Ollama embeddings for semantic search
+- `--with-learning` flag on `install.sh` for opt-in learning system installation
+- Documentation: `docs/continuous-learning.md` with architecture, workflow, and troubleshooting
+- Knowledge Base search and capture protocols in CLAUDE.md
+- `.claude/memories/` directory for persistent knowledge storage
+
 ## [1.1.0] - 2026-02-22
 
 ### Added
