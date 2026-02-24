@@ -252,44 +252,84 @@ OmniLabs can learn from your analysis sessions. The continuous learning system c
 ### How It Works
 
 ```
-Session Start → ollama-status hook → Check Ollama + sync memories
-      ↓
-  Search KB → docs-mcp-server → Semantic search over prior findings
-      ↓
-  Analysis → Do the work (agents analyze the codebase)
-      ↓
-  Capture → continuous-learning skill → Save to .claude/memories/
-      ↓
-  Index → Ollama embeds → docs-mcp-server indexes → Ready for next session
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │                        CONTINUOUS LEARNING LOOP                         │
+  │                                                                         │
+  │  ┌─────────────┐     ┌──────────────────┐     ┌─────────────────────┐  │
+  │  │  📡 Ollama   │────▶│  🔍 docs-mcp     │────▶│  📂 .claude/        │  │
+  │  │  localhost   │     │  server           │     │  memories/          │  │
+  │  │  :11434      │     │  (semantic search) │     │                     │  │
+  │  │  nomic-      │◀────│                   │◀────│  learning_*.md      │  │
+  │  │  embed-text  │ idx │                   │ r/w │  decision_*.md      │  │
+  │  └─────────────┘     └──────────────────┘     └─────────────────────┘  │
+  │         │                     ▲  │                       ▲              │
+  │         │                     │  │ search                │ save         │
+  │         │                     │  ▼                       │              │
+  │  ┌──────▼──────────────────────────────────────────────────────────┐   │
+  │  │                      ANALYSIS SESSION                           │   │
+  │  │                                                                 │   │
+  │  │  1. 🚀 Session Start                                           │   │
+  │  │     └─ ollama-status.sh → check health, sync memories          │   │
+  │  │                                                                 │   │
+  │  │  2. 🔎 Search KB                                               │   │
+  │  │     └─ search_docs("omnilabs-memories", "<task keywords>")     │   │
+  │  │     └─ Review prior patterns, decisions, findings              │   │
+  │  │                                                                 │   │
+  │  │  3. 📊 Run Analysis                                            │   │
+  │  │     └─ Agents analyze codebase (enriched by KB context)        │   │
+  │  │     └─ activator hook → reminds about knowledge capture        │   │
+  │  │                                                                 │   │
+  │  │  4. 💾 Capture Knowledge                                       │   │
+  │  │     └─ continuous-learning skill                               │   │
+  │  │     └─ Evaluate → Search existing → Structure → Save           │   │
+  │  │                                                                 │   │
+  │  │  5. 🔄 Next session → memories indexed → searchable            │   │
+  │  └─────────────────────────────────────────────────────────────────┘   │
+  └─────────────────────────────────────────────────────────────────────────┘
 ```
-
-### Components
-
-| Component | Purpose |
-|-----------|---------|
-| **Ollama** | Local embedding model (`nomic-embed-text`) — no API keys needed |
-| **docs-mcp-server** | Semantic search MCP server using Ollama embeddings |
-| **continuous-learning skill** | Governs knowledge capture workflow and templates |
-| **activator hook** | Reminds about knowledge capture after each task |
-| **ollama-status hook** | Checks Ollama and syncs memories on session start |
 
 ### Memory Types
 
-- **Learnings** (`learning_<topic>_<specific>.md`) — debugging discoveries, analysis patterns, workarounds
-- **Decisions** (`decision_<domain>_<topic>.md`) — architecture choices, conventions, scoring calibration
+Two types of memories, organized across 6 domains:
 
-Domains: `analysis`, `evaluation`, `agent`, `framework`, `tooling`, `debugging`
+```
+  .claude/memories/
+  ├── learning_analysis_tam-estimation-saas.md        # 💡 Discovery
+  ├── learning_evaluation_false-positive-moat.md      # 💡 Eval insight
+  ├── learning_debugging_grader-exit-codes.md         # 💡 Workaround
+  ├── decision_agent_score-range-calibration.md       # 📌 Choice
+  ├── decision_framework_hook-registration.md         # 📌 Architecture
+  └── decision_tooling_embedding-model-choice.md      # 📌 Tool selection
+```
+
+| Type | Pattern | When to capture |
+|------|---------|-----------------|
+| **Learnings** | `learning_<topic>_<specific>.md` | Debugging discoveries, analysis patterns, workarounds, non-obvious findings |
+| **Decisions** | `decision_<domain>_<topic>.md` | Architecture choices, conventions, scoring calibration, methodology |
+
+Domains: `analysis` · `evaluation` · `agent` · `framework` · `tooling` · `debugging`
+
+### Stack
+
+| Layer | Component | Purpose |
+|-------|-----------|---------|
+| Embeddings | [Ollama](https://ollama.com) + `nomic-embed-text` | Local vector embeddings — no API keys, no cloud |
+| Search | [docs-mcp-server](https://github.com/arabold/docs-mcp-server) | Semantic search MCP over `.claude/memories/` |
+| Capture | `continuous-learning` skill | 4 templates: Learning, Decision, Analysis Pattern, Eval Finding |
+| Activation | `continuous-learning-activator.sh` | PreToolUse hook — reminds about knowledge capture |
+| Sync | `ollama-status.sh` | SessionStart hook — health check + memory indexing |
 
 ### Prerequisites
 
-- [Ollama](https://ollama.com) running locally with `nomic-embed-text` model
-- Node.js (for npx to run docs-mcp-server)
-
 ```bash
-ollama pull nomic-embed-text && ollama serve
+brew install ollama              # or download from https://ollama.com
+ollama pull nomic-embed-text     # embedding model (~274MB)
+ollama serve                     # start the server
 ```
 
-The system degrades gracefully — if Ollama is not running, analysis works normally without KB search.
+Node.js is also required (for `npx` to run docs-mcp-server).
+
+The system **degrades gracefully** — if Ollama is not running, analysis works normally without KB search. Memories are still saved as files and will be indexed the next time Ollama is available.
 
 See [docs/continuous-learning.md](docs/continuous-learning.md) for the full guide.
 
