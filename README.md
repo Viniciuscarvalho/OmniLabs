@@ -252,6 +252,35 @@ bash evaluation/harness/run-eval.sh --agent technical-architecture \
 bash evaluation/harness/report.sh
 ```
 
+### Automated Test Coverage
+
+The grader test suite validates that graders work correctly in both directions:
+
+```bash
+# Run the grader test suite
+bash evaluation/tests/test-graders.sh
+```
+
+**Phase 1 (positive tests)** — golden outputs must PASS all grader checks:
+
+| Agent | Golden Output | Checks |
+|-------|--------------|--------|
+| `business-product` | `golden-outputs/golden-business-product.md` | 15 |
+| `financial-cost` | `golden-outputs/golden-financial-cost.md` | 17 |
+| `technical-architecture` | `golden-outputs/golden-technical-arch.md` | 19 |
+| `devils-advocate` | `golden-outputs/golden-devils-advocate.md` | 17 |
+| `lead-synthesis` | `golden-outputs/golden-lead-synthesis.md` | 19 |
+
+**Phase 2 (negative tests)** — broken outputs must FAIL:
+- Empty files fail all 5 graders
+- Missing sections detected (business-product)
+- Missing scores detected (financial-cost)
+- Placeholder text detected (`[TODO]`, `[TBD]`)
+- Missing cross-references detected (devils-advocate)
+- Missing decision detected (lead-synthesis)
+
+**15 tests total, 87 grader checks validated.**
+
 ### Eval Architecture
 
 ```
@@ -404,6 +433,9 @@ OmniLabs/
 │   ├── graders/
 │   │   ├── code-based/                  # Deterministic bash graders
 │   │   └── model-based/                 # LLM-as-Judge rubrics
+│   ├── golden-outputs/                  # Reference outputs that pass all graders
+│   ├── tests/
+│   │   └── test-graders.sh             # Automated grader test suite
 │   ├── datasets/                        # Golden reference projects
 │   ├── harness/                         # Eval runner scripts
 │   └── results/                         # Eval output
