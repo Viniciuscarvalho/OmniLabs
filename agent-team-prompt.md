@@ -22,6 +22,8 @@ Create a team called "omnilabs-analysis" with 5 agents:
 5. **lead-synthesis** (Opus) — Wait for all 4 analysts to complete. Then synthesize their findings into the OmniLabs Report: GO/NO-GO/CONDITIONAL GO decision, dimension scores, consensus vs contested findings, risk matrix, and 30/60/90-day implementation roadmap.
 
 Run analysts 1-4 in parallel. Agent 5 (lead-synthesis) should start only after all 4 analysts have completed their reports. The devil's advocate should specifically reference and challenge findings from the other 3 analysts.
+
+IMPORTANT: After the lead-synthesis agent produces the final OmniLabs Report, it MUST also save a structured JSON summary to the dashboard by running `bash scripts/save-report.sh "<project-name>"` and writing the summary.json to the returned directory. Then run `bash scripts/generate-dashboard.sh --open` to update and open the dashboard in the browser.
 ```
 
 ---

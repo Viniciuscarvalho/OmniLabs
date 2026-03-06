@@ -56,6 +56,43 @@ When running as team lead:
 4. Run convergence/divergence analysis
 5. Challenge key findings using devil's advocate output
 6. Produce the OmniLabs Report
+7. **Save to Dashboard**: After producing the report, save a structured JSON summary for the dashboard by running:
+   ```bash
+   bash scripts/save-report.sh "<project-name>"
+   ```
+   Then pipe the JSON to stdin OR write directly to the created directory's `summary.json`.
+
+## Dashboard Report Format (JSON)
+
+After completing the OmniLabs Report, you MUST also produce a `summary.json` with this structure and save it to the report directory. Use `bash scripts/save-report.sh "<project>"` to create the directory, then write the JSON:
+
+```json
+{
+  "project": "<Project Name>",
+  "date": "<YYYY-MM-DD HH:MM>",
+  "decision": "<GO | NO-GO | CONDITIONAL GO>",
+  "confidence": "<Low | Medium | High | Very High>",
+  "composite_score": <number>,
+  "scores": {
+    "market": <number>,
+    "financial": <number>,
+    "architecture": <number>,
+    "risk": <number>
+  },
+  "conditions": ["<condition if CONDITIONAL GO>"],
+  "consensus": ["<high-confidence finding>"],
+  "contested": ["<contested finding>"],
+  "agents": {
+    "business_product": { "score": <number>, "summary": "<one-line>" },
+    "financial_cost": { "score": <number>, "summary": "<one-line>" },
+    "technical_architecture": { "score": <number>, "summary": "<one-line>" },
+    "devils_advocate": { "score": <number>, "summary": "<one-line>" },
+    "lead_synthesis": { "score": <number>, "summary": "<one-line>" }
+  }
+}
+```
+
+After saving, run `bash scripts/generate-dashboard.sh --open` to regenerate and open the dashboard.
 
 ## OmniLabs Report Format
 

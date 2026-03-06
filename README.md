@@ -158,6 +158,44 @@ The lead synthesis agent produces a structured executive report:
 
 ---
 
+## Dashboard
+
+Every analysis automatically generates a **visual dashboard** that opens in your browser — no more losing results inside conversation history.
+
+<p align="center">
+  <img src="assets/dashboard-preview.png" alt="OmniLabs Dashboard" width="100%" style="border-radius: 12px;">
+</p>
+
+The dashboard shows:
+
+- **Stats bar** — total analyses, GO/NO-GO/CONDITIONAL counts at a glance
+- **Latest analysis** — decision, composite score, dimension scores, conditions, and consensus findings
+- **Agent reports** — status and score for each of the 5 agents
+- **Analysis history** — every past analysis with scores and decisions
+- **Knowledge base** — memory files and Ollama status
+
+### How it works
+
+After the lead-synthesis agent completes the OmniLabs Report, it automatically:
+
+1. Saves a structured `summary.json` to `reports/<timestamp>/`
+2. Runs `scripts/generate-dashboard.sh --open`
+3. The dashboard opens in your default browser
+
+### Manual usage
+
+```bash
+# Regenerate and open the dashboard
+bash scripts/generate-dashboard.sh --open
+
+# Just regenerate (no browser)
+bash scripts/generate-dashboard.sh
+```
+
+The dashboard is a **self-contained HTML file** generated from `dashboard/template.html`. Report data is embedded at generation time — no server needed.
+
+---
+
 ## Examples
 
 | Scenario | Description |
@@ -355,6 +393,12 @@ OmniLabs/
 │   ├── memories/                        # Knowledge base (markdown files)
 │   ├── settings.json
 │   └── CLAUDE.md
+├── dashboard/
+│   └── template.html                    # Dashboard HTML template
+├── scripts/
+│   ├── generate-dashboard.sh            # Generates dashboard from reports
+│   └── save-report.sh                   # Saves agent reports as JSON
+├── reports/                             # Analysis reports (auto-generated)
 ├── evaluation/
 │   ├── tasks/                           # Eval test cases per agent
 │   ├── graders/

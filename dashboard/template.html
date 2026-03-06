@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OmniLabs Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            omni: {
+              bg: '#0a0a0f',
+              card: '#12121a',
+              border: '#1e1e2e',
+              accent: '#a855f7',
+              yellow: '#ffd60a',
+              green: '#22c55e',
+              blue: '#3b82f6',
+              red: '#ef4444',
+              purple: '#a855f7',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+    body { font-family: 'Inter', sans-serif; background: #0a0a0f; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    .glow { box-shadow: 0 0 20px rgba(168, 85, 247, 0.15); }
+    .glow-green { box-shadow: 0 0 20px rgba(34, 197, 94, 0.15); }
+    .glow-red { box-shadow: 0 0 20px rgba(239, 68, 68, 0.15); }
+    .glow-yellow { box-shadow: 0 0 20px rgba(255, 214, 10, 0.15); }
+    .score-ring { background: conic-gradient(var(--ring-color) calc(var(--score) * 1%), #1e1e2e 0); }
+    .fade-in { animation: fadeIn 0.5s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
+  </style>
+</head>
+<body class="text-gray-200 min-h-screen">
+
+  <!-- Header -->
+  <header class="border-b border-omni-border px-6 py-4">
+    <div class="max-w-7xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-omni-accent/20 flex items-center justify-center">
+          <svg class="w-5 h-5 text-omni-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+          </svg>
+        </div>
+        <h1 class="text-lg font-semibold text-white">OmniLabs <span class="text-omni-accent">Dashboard</span></h1>
+      </div>
+      <div class="flex items-center gap-4 text-sm text-gray-400">
+        <span id="ollama-status" class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-gray-500"></span>
+          Checking Ollama...
+        </span>
+        <span class="mono text-xs" id="last-updated"></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="max-w-7xl mx-auto px-6 py-8">
+
+    <!-- Stats Row -->
+    <div class="grid grid-cols-4 gap-4 mb-8 fade-in" id="stats-row">
+      <div class="bg-omni-card border border-omni-border rounded-xl p-4">
+        <div class="text-xs text-gray-500 uppercase tracking-wider mb-1">Total Analyses</div>
+        <div class="text-2xl font-bold text-white mono" id="stat-total">0</div>
+      </div>
+      <div class="bg-omni-card border border-omni-border rounded-xl p-4">
+        <div class="text-xs text-gray-500 uppercase tracking-wider mb-1">GO Decisions</div>
+        <div class="text-2xl font-bold text-omni-green mono" id="stat-go">0</div>
+      </div>
+      <div class="bg-omni-card border border-omni-border rounded-xl p-4">
+        <div class="text-xs text-gray-500 uppercase tracking-wider mb-1">Conditional</div>
+        <div class="text-2xl font-bold text-omni-yellow mono" id="stat-conditional">0</div>
+      </div>
+      <div class="bg-omni-card border border-omni-border rounded-xl p-4">
+        <div class="text-xs text-gray-500 uppercase tracking-wider mb-1">NO-GO</div>
+        <div class="text-2xl font-bold text-omni-red mono" id="stat-nogo">0</div>
+      </div>
+    </div>
+
+    <!-- Latest Analysis -->
+    <div id="latest-section" class="mb-8 fade-in" style="display:none;">
+      <h2 class="text-sm font-medium text-gray-400 uppercase tracking-wider mb-4">Latest Analysis</h2>
+      <div class="bg-omni-card border border-omni-border rounded-xl p-6 glow" id="latest-card">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+
+    <!-- Agent Status Grid -->
+    <div id="agents-section" class="mb-8 fade-in" style="display:none;">
+      <h2 class="text-sm font-medium text-gray-400 uppercase tracking-wider mb-4">Agent Reports</h2>
+      <div class="grid grid-cols-5 gap-4" id="agents-grid">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+
+    <!-- Analysis History -->
+    <div class="fade-in">
+      <h2 class="text-sm font-medium text-gray-400 uppercase tracking-wider mb-4">Analysis History</h2>
+      <div id="history-list" class="space-y-3">
+        <!-- Populated by JS -->
+      </div>
+      <div id="empty-state" class="bg-omni-card border border-omni-border border-dashed rounded-xl p-12 text-center">
+        <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-omni-accent/10 flex items-center justify-center">
+          <svg class="w-8 h-8 text-omni-accent/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/>
+          </svg>
+        </div>
+        <p class="text-gray-500 mb-2">No analyses yet</p>
+        <p class="text-gray-600 text-sm">Run your first analysis in Claude Code:</p>
+        <code class="block mt-2 text-xs mono text-omni-accent/70 bg-omni-accent/5 rounded-lg px-4 py-2 inline-block">
+          Run a full OmniLabs strategic analysis of this project.
+        </code>
+      </div>
+    </div>
+
+    <!-- Memories Section -->
+    <div class="mt-8 fade-in">
+      <h2 class="text-sm font-medium text-gray-400 uppercase tracking-wider mb-4">Knowledge Base</h2>
+      <div class="bg-omni-card border border-omni-border rounded-xl p-6" id="kb-section">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
+              <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+              </svg>
+            </div>
+            <div>
+              <div class="text-white font-medium">Memories</div>
+              <div class="text-xs text-gray-500" id="kb-count">0 files indexed</div>
+            </div>
+          </div>
+          <div id="ollama-badge" class="px-3 py-1 rounded-full text-xs font-medium bg-gray-800 text-gray-400">
+            Ollama offline
+          </div>
+        </div>
+        <div id="memories-list" class="space-y-2">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-omni-border px-6 py-4 mt-12">
+    <div class="max-w-7xl mx-auto flex items-center justify-between text-xs text-gray-600">
+      <span>OmniLabs Strategic Analysis Framework</span>
+      <span>Auto-generated dashboard &mdash; do not edit manually</span>
+    </div>
+  </footer>
+
+  <script>
+    // ===== DATA (injected by generate-dashboard.sh) =====
+    const DASHBOARD_DATA = __DASHBOARD_DATA__;
+
+    // ===== RENDER =====
+    function init() {
+      const data = DASHBOARD_DATA;
+      document.getElementById('last-updated').textContent = 'Updated: ' + data.generated_at;
+
+      // Ollama status
+      const ollamaEl = document.getElementById('ollama-status');
+      const ollamaBadge = document.getElementById('ollama-badge');
+      if (data.ollama_running) {
+        ollamaEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-green-500 pulse-dot"></span> Ollama running';
+        ollamaBadge.className = 'px-3 py-1 rounded-full text-xs font-medium bg-green-500/10 text-green-400';
+        ollamaBadge.textContent = 'Ollama online';
+      } else {
+        ollamaEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-gray-500"></span> Ollama offline';
+      }
+
+      // Stats
+      document.getElementById('stat-total').textContent = data.analyses.length;
+      document.getElementById('stat-go').textContent = data.analyses.filter(a => a.decision === 'GO').length;
+      document.getElementById('stat-conditional').textContent = data.analyses.filter(a => a.decision === 'CONDITIONAL GO').length;
+      document.getElementById('stat-nogo').textContent = data.analyses.filter(a => a.decision === 'NO-GO').length;
+
+      // KB
+      document.getElementById('kb-count').textContent = data.memories.length + ' files indexed';
+      const memList = document.getElementById('memories-list');
+      if (data.memories.length > 0) {
+        memList.innerHTML = data.memories.map(m =>
+          `<div class="flex items-center gap-2 text-sm py-1.5 px-3 rounded-lg bg-white/[0.02]">
+            <span class="w-1.5 h-1.5 rounded-full ${m.type === 'learning' ? 'bg-blue-400' : 'bg-purple-400'}"></span>
+            <span class="text-gray-300">${m.name}</span>
+            <span class="text-gray-600 text-xs ml-auto mono">${m.date}</span>
+          </div>`
+        ).join('');
+      } else {
+        memList.innerHTML = '<p class="text-gray-600 text-sm">No memories captured yet. Run analyses to build the knowledge base.</p>';
+      }
+
+      // Analyses
+      if (data.analyses.length === 0) {
+        document.getElementById('empty-state').style.display = '';
+        return;
+      }
+      document.getElementById('empty-state').style.display = 'none';
+
+      // Latest
+      const latest = data.analyses[0];
+      document.getElementById('latest-section').style.display = '';
+      const decisionColors = { 'GO': 'green', 'NO-GO': 'red', 'CONDITIONAL GO': 'yellow' };
+      const dc = decisionColors[latest.decision] || 'gray';
+      document.getElementById('latest-card').className =
+        `bg-omni-card border border-omni-border rounded-xl p-6 glow-${dc}`;
+      document.getElementById('latest-card').innerHTML = `
+        <div class="flex items-start justify-between mb-6">
+          <div>
+            <h3 class="text-xl font-bold text-white">${latest.project}</h3>
+            <p class="text-sm text-gray-500 mono mt-1">${latest.date}</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="px-4 py-2 rounded-lg text-sm font-bold
+              ${dc === 'green' ? 'bg-green-500/10 text-green-400 border border-green-500/20' : ''}
+              ${dc === 'red' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : ''}
+              ${dc === 'yellow' ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20' : ''}
+            ">${latest.decision}</span>
+            <div class="text-center">
+              <div class="text-2xl font-bold text-white mono">${latest.composite_score}</div>
+              <div class="text-xs text-gray-500">/10</div>
+            </div>
+          </div>
+        </div>
+        <div class="grid grid-cols-4 gap-4 mb-6">
+          ${renderScoreCard('Market', latest.scores.market, 'yellow')}
+          ${renderScoreCard('Financial', latest.scores.financial, 'green')}
+          ${renderScoreCard('Architecture', latest.scores.architecture, 'blue')}
+          ${renderScoreCard('Risk', latest.scores.risk, 'red')}
+        </div>
+        ${latest.conditions && latest.conditions.length > 0 ? `
+          <div class="border-t border-omni-border pt-4">
+            <h4 class="text-xs text-gray-500 uppercase tracking-wider mb-2">Conditions</h4>
+            <ul class="space-y-1">
+              ${latest.conditions.map(c => `<li class="text-sm text-gray-400 flex items-start gap-2">
+                <span class="text-yellow-500 mt-0.5">&#9679;</span> ${c}
+              </li>`).join('')}
+            </ul>
+          </div>
+        ` : ''}
+        ${latest.consensus && latest.consensus.length > 0 ? `
+          <div class="border-t border-omni-border pt-4 mt-4">
+            <h4 class="text-xs text-gray-500 uppercase tracking-wider mb-2">Consensus Findings</h4>
+            <ul class="space-y-1">
+              ${latest.consensus.map(c => `<li class="text-sm text-gray-400 flex items-start gap-2">
+                <span class="text-green-500 mt-0.5">&#10003;</span> ${c}
+              </li>`).join('')}
+            </ul>
+          </div>
+        ` : ''}
+      `;
+
+      // Agents grid
+      document.getElementById('agents-section').style.display = '';
+      const agentDefs = [
+        { key: 'business_product', name: 'Business & Product', color: 'yellow', icon: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6' },
+        { key: 'financial_cost', name: 'Financial & Cost', color: 'green', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
+        { key: 'technical_architecture', name: 'Tech Architecture', color: 'blue', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
+        { key: 'devils_advocate', name: "Devil's Advocate", color: 'red', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
+        { key: 'lead_synthesis', name: 'Lead Synthesis', color: 'purple', icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' },
+      ];
+      const agentsGrid = document.getElementById('agents-grid');
+      agentsGrid.innerHTML = agentDefs.map(agent => {
+        const report = latest.agents?.[agent.key];
+        const status = report ? 'completed' : 'pending';
+        const statusColor = status === 'completed' ? 'green' : 'gray';
+        return `
+          <div class="bg-omni-card border border-omni-border rounded-xl p-4 hover:border-${agent.color}-500/30 transition-colors">
+            <div class="flex items-center gap-2 mb-3">
+              <svg class="w-4 h-4 text-${agent.color}-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${agent.icon}"/>
+              </svg>
+              <span class="text-xs font-medium text-gray-300">${agent.name}</span>
+            </div>
+            <div class="flex items-center gap-2 mb-2">
+              <span class="w-2 h-2 rounded-full bg-${statusColor}-500 ${status === 'running' ? 'pulse-dot' : ''}"></span>
+              <span class="text-xs text-gray-500 capitalize">${status}</span>
+            </div>
+            ${report ? `
+              <div class="text-lg font-bold text-white mono">${report.score || '-'}<span class="text-xs text-gray-500 font-normal">/10</span></div>
+              <p class="text-xs text-gray-500 mt-1 line-clamp-2">${report.summary || ''}</p>
+            ` : `
+              <div class="text-lg font-bold text-gray-700 mono">-</div>
+              <p class="text-xs text-gray-600 mt-1">Awaiting execution</p>
+            `}
+          </div>
+        `;
+      }).join('');
+
+      // History
+      const historyList = document.getElementById('history-list');
+      historyList.innerHTML = data.analyses.map((a, i) => {
+        const dc = decisionColors[a.decision] || 'gray';
+        return `
+          <div class="bg-omni-card border border-omni-border rounded-xl p-4 flex items-center justify-between hover:border-omni-accent/20 transition-colors ${i === 0 ? 'ring-1 ring-omni-accent/20' : ''}">
+            <div class="flex items-center gap-4">
+              <div class="text-lg font-bold text-white mono w-12">${a.composite_score}<span class="text-xs text-gray-500">/10</span></div>
+              <div>
+                <div class="text-sm font-medium text-white">${a.project}</div>
+                <div class="text-xs text-gray-500 mono">${a.date}</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-4">
+              <div class="flex gap-2">
+                <span class="text-xs mono text-yellow-400/70">${a.scores.market || '-'}</span>
+                <span class="text-xs mono text-green-400/70">${a.scores.financial || '-'}</span>
+                <span class="text-xs mono text-blue-400/70">${a.scores.architecture || '-'}</span>
+                <span class="text-xs mono text-red-400/70">${a.scores.risk || '-'}</span>
+              </div>
+              <span class="px-3 py-1 rounded-lg text-xs font-bold
+                ${dc === 'green' ? 'bg-green-500/10 text-green-400' : ''}
+                ${dc === 'red' ? 'bg-red-500/10 text-red-400' : ''}
+                ${dc === 'yellow' ? 'bg-yellow-500/10 text-yellow-400' : ''}
+              ">${a.decision}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderScoreCard(label, score, color) {
+      const s = score || 0;
+      const barWidth = (s / 10) * 100;
+      return `
+        <div class="bg-white/[0.02] rounded-lg p-3">
+          <div class="text-xs text-gray-500 mb-1">${label}</div>
+          <div class="text-lg font-bold text-white mono">${score || '-'}</div>
+          <div class="w-full h-1 bg-gray-800 rounded-full mt-2">
+            <div class="h-1 bg-${color}-500 rounded-full transition-all" style="width: ${barWidth}%"></div>
+          </div>
+        </div>
+      `;
+    }
+
+    init();
+  </script>
+</body>
+</html>

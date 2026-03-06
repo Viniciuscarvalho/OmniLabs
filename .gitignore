@@ -1,0 +1,9 @@
+# Generated dashboard (regenerated from template)
+dashboard/index.html
+
+# OS
+.DS_Store
+
+# Reports contain project-specific data
+reports/*/
+!reports/.gitkeep
