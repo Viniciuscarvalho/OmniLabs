@@ -160,39 +160,113 @@ The lead synthesis agent produces a structured executive report:
 
 ## Dashboard
 
-Every analysis automatically generates a **visual dashboard** that opens in your browser — no more losing results inside conversation history.
+Analysis results are persisted in a **visual dashboard** that opens in your browser — no more losing findings inside conversation history. Every analysis accumulates in the dashboard, giving you a historical view of all evaluations.
 
 <p align="center">
   <img src="assets/dashboard-preview.png" alt="OmniLabs Dashboard" width="100%" style="border-radius: 12px;">
 </p>
 
-The dashboard shows:
+### What the dashboard shows
 
-- **Stats bar** — total analyses, GO/NO-GO/CONDITIONAL counts at a glance
-- **Latest analysis** — decision, composite score, dimension scores, conditions, and consensus findings
-- **Agent reports** — status and score for each of the 5 agents
-- **Analysis history** — every past analysis with scores and decisions
-- **Knowledge base** — memory files and Ollama status
+| Section | Description |
+|---------|-------------|
+| **Stats bar** | Total analyses, GO / NO-GO / CONDITIONAL counts |
+| **Latest analysis** | Decision, composite score, dimension scores, conditions, consensus |
+| **Agent reports** | Status and score for each of the 5 agents |
+| **Analysis history** | Every past analysis with scores and decisions |
+| **Knowledge base** | Memory file count and Ollama connection status |
 
-### How it works
+### Automatic flow
 
-After the lead-synthesis agent completes the OmniLabs Report, it automatically:
+When you run a full OmniLabs analysis, the dashboard is generated automatically:
 
-1. Saves a structured `summary.json` to `reports/<timestamp>/`
-2. Runs `scripts/generate-dashboard.sh --open`
-3. The dashboard opens in your default browser
+```
+You run analysis in Claude Code
+        |
+        v
+4 agents analyze in parallel (Sonnet)
+        |
+        v
+Lead Synthesis produces report (Opus)
+        |
+        v
+Saves summary.json to reports/<timestamp>/    <-- persistent data
+        |
+        v
+Runs: bash scripts/generate-dashboard.sh --open
+        |
+        v
+Dashboard opens in your browser
+```
+
+You don't need to do anything extra — the lead-synthesis agent handles saving and opening.
 
 ### Manual usage
 
+If you want to open the dashboard outside of an analysis (e.g., to review past results):
+
 ```bash
-# Regenerate and open the dashboard
+# Generate the dashboard and open it in your browser
 bash scripts/generate-dashboard.sh --open
 
-# Just regenerate (no browser)
+# Generate without opening (useful in CI or scripts)
 bash scripts/generate-dashboard.sh
 ```
 
-The dashboard is a **self-contained HTML file** generated from `dashboard/template.html`. Report data is embedded at generation time — no server needed.
+### How it works under the hood
+
+```
+dashboard/template.html     <-- HTML template (committed to git)
+        +
+reports/*/summary.json      <-- analysis data (one per run)
+        |
+        v
+scripts/generate-dashboard.sh
+        |
+        v
+dashboard/index.html        <-- generated file (gitignored)
+```
+
+1. **`dashboard/template.html`** is the HTML template with a `__DASHBOARD_DATA__` placeholder
+2. **`scripts/generate-dashboard.sh`** reads all `reports/*/summary.json` files, collects memory files from `.claude/memories/`, checks Ollama status, and injects all data into the template
+3. **`dashboard/index.html`** is the generated output — a self-contained HTML file with all data embedded. No server needed, just open in any browser
+4. **`scripts/save-report.sh`** is called by the lead-synthesis agent to create the report directory and trigger dashboard regeneration
+
+### Adding reports manually
+
+If you want to add a report without running a full analysis (e.g., from a previous session):
+
+```bash
+# Create a report directory
+bash scripts/save-report.sh "My Project"
+# This prints the path, e.g.: reports/2026-03-06-153000/
+
+# Edit the summary.json in that directory with your data
+# Then regenerate the dashboard
+bash scripts/generate-dashboard.sh --open
+```
+
+The `summary.json` format:
+
+```json
+{
+  "project": "Project Name",
+  "date": "2026-03-06 15:30",
+  "decision": "GO | NO-GO | CONDITIONAL GO",
+  "confidence": "Low | Medium | High | Very High",
+  "composite_score": 7.5,
+  "scores": { "market": 8, "financial": 7, "architecture": 8, "risk": 6 },
+  "conditions": ["condition if CONDITIONAL GO"],
+  "consensus": ["high-confidence finding"],
+  "agents": {
+    "business_product": { "score": 8, "summary": "one-line summary" },
+    "financial_cost": { "score": 7, "summary": "one-line summary" },
+    "technical_architecture": { "score": 8, "summary": "one-line summary" },
+    "devils_advocate": { "score": 6, "summary": "one-line summary" },
+    "lead_synthesis": { "score": 7.5, "summary": "one-line summary" }
+  }
+}
+```
 
 ---
 
