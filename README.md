@@ -105,46 +105,97 @@ Copy individual agent files from `.claude/agents/` into your project's `.claude/
 
 ---
 
-## Quick Start
+## Running an Analysis
 
-Open Claude Code in your project and paste:
+### Step 1: Open Claude Code in your project
+
+```bash
+cd /path/to/your/project
+claude
+```
+
+Make sure the `.claude/agents/` folder from OmniLabs is in your project (see [Install](#install)).
+
+### Step 2: Run the full analysis
+
+Paste this into Claude Code:
 
 ```
 Run a full OmniLabs strategic analysis of this project.
-
-Create a team called "omnilabs-analysis" with 5 agents:
-
-1. business-product (Sonnet) — Analyze market opportunity, PMF, competitive landscape, and GTM strategy.
-2. financial-cost (Sonnet) — Model infrastructure costs, calculate TCO at different scales, evaluate build-vs-buy, project ROI.
-3. technical-architecture (Sonnet) — Evaluate architecture across 6 dimensions, score each 1-10 with evidence from code.
-4. devils-advocate (Sonnet) — Stress-test all findings. Challenge assumptions with evidence. Run pre-mortem analysis.
-5. lead-synthesis (Opus) — Wait for all 4 analysts, then synthesize the OmniLabs Report with GO/NO-GO decision.
-
-Run analysts 1-4 in parallel. Agent 5 starts only after all 4 complete.
 ```
 
-See [`agent-team-prompt.md`](agent-team-prompt.md) for the full prompt with all configuration options.
+That's it. Claude Code will:
 
----
+1. Launch **4 analyst agents in parallel** (business, financial, technical, devil's advocate)
+2. Each agent reads your actual codebase — source files, configs, dependencies, tests
+3. Wait for all 4 to complete
+4. Launch the **lead-synthesis agent** (Opus) to synthesize findings
+5. Produce the **OmniLabs Report** with a GO / NO-GO / CONDITIONAL GO decision
+6. Save results and **open the dashboard** in your browser
 
-## Individual Agent Prompts
+### What happens during the analysis
 
-For focused deep-dives, each agent has a dedicated prompt file with comprehensive evaluation criteria and structured output expectations:
+```
+You paste the prompt
+        |
+        v
+  ┌─────┼─────┬──────────┐
+  v     v     v          v
+ 🟡    🟢    🔵         🔴
+ Business  Financial  Technical  Devil's
+ Product   Cost       Arch       Advocate
+ (Sonnet)  (Sonnet)   (Sonnet)   (Sonnet)
+  │     │     │          │
+  │  reads code, configs, deps, tests
+  │     │     │          │
+  └─────┴─────┴──────┬───┘
+                      v
+                 🟣 Lead Synthesis (Opus)
+                      │
+                      v
+              OmniLabs Report
+            + Dashboard opens
+```
 
-| | Agent | Prompt File | What It Covers |
-|---|-------|-------------|----------------|
-| 🟡 | Business & Product | [`business-product-analysis.md`](business-product-analysis.md) | Product definition, market opportunity, PMF signals, competitive landscape, GTM, business model, risks |
-| 🟢 | Financial & Cost | [`financial-cost-analysis.md`](financial-cost-analysis.md) | Infrastructure inventory, third-party costs, TCO at 4 scales, unit economics, optimization, runway |
-| 🔵 | Technical Architecture | [`technical-architecture-review.md`](technical-architecture-review.md) | 6-dimension scoring: scalability, reliability, maintainability, security, observability, operability |
-| 🔴 | Devil's Advocate | [`devil-advocate-challenge.md`](devil-advocate-challenge.md) | Assumption deconstruction, architectural fragility, pre-mortem, competitor counterattack |
+Each agent has **read-only access** to your codebase (Read, Grep, Glob, Bash). They examine:
+- Source code and architecture patterns
+- `package.json`, `Dockerfile`, `terraform`, CI configs
+- Test coverage and quality
+- Environment variables and infrastructure signals
+- README, docs, and business context
 
-Copy the contents of any prompt file and paste it into Claude Code.
+### Alternative: Run individual agents
 
----
+For a focused deep-dive on one dimension, run a single agent:
 
-## The OmniLabs Report
+```
+Run the business-product analysis on this project.
+```
 
-The lead synthesis agent produces a structured executive report:
+```
+Run the technical-architecture review on this project.
+```
+
+```
+Run the financial-cost analysis on this project.
+```
+
+```
+Run the devils-advocate challenge on this project.
+```
+
+Each agent has a dedicated prompt file with detailed evaluation criteria:
+
+| | Agent | Prompt File | What It Analyzes |
+|---|-------|-------------|------------------|
+| 🟡 | Business & Product | [`business-product-analysis.md`](business-product-analysis.md) | Market opportunity, PMF, competitive landscape, GTM, business model |
+| 🟢 | Financial & Cost | [`financial-cost-analysis.md`](financial-cost-analysis.md) | Infrastructure costs, TCO at 4 scales, build-vs-buy, unit economics |
+| 🔵 | Technical Architecture | [`technical-architecture-review.md`](technical-architecture-review.md) | 6 dimensions: scalability, reliability, maintainability, security, observability, operability |
+| 🔴 | Devil's Advocate | [`devil-advocate-challenge.md`](devil-advocate-challenge.md) | Assumption stress-testing, pre-mortem, blind spots, failure scenarios |
+
+### The OmniLabs Report
+
+The lead-synthesis agent produces a structured executive report:
 
 | Section | Description |
 |---------|-------------|
@@ -155,6 +206,8 @@ The lead synthesis agent produces a structured executive report:
 | **Blind Spots** | Issues no single analyst fully addressed |
 | **Risk Matrix** | Probability x Impact with mitigations |
 | **Implementation Roadmap** | 30/60/90-day phased action plan |
+
+See [`agent-team-prompt.md`](agent-team-prompt.md) for the full orchestration prompt with all configuration options.
 
 ---
 
