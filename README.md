@@ -8,6 +8,7 @@
   <a href="#agents"><img src="https://img.shields.io/badge/Agents-5_specialized-22c55e?style=flat-square" alt="5 Agents"></a>
   <a href="#agents"><img src="https://img.shields.io/badge/Models-Sonnet_%2B_Opus-3b82f6?style=flat-square" alt="Sonnet + Opus"></a>
   <a href="#"><img src="https://img.shields.io/badge/Language-agnostic-9ca3af?style=flat-square" alt="Language Agnostic"></a>
+  <a href="https://github.com/sponsors/Viniciuscarvalho"><img src="https://img.shields.io/badge/Sponsor-%E2%9D%A4-ea4aaa?style=flat-square&logo=github-sponsors&logoColor=white" alt="Sponsor"></a>
 </p>
 
 <p align="center">
@@ -598,6 +599,24 @@ OmniLabs/
 ## Contributing
 
 Contributions welcome — new agents, improved frameworks, better prompts. Open an issue or PR.
+
+---
+
+## Sponsors
+
+OmniLabs is free and open source. If it saves you time or helps you make better decisions, consider sponsoring to support continued development.
+
+<p align="center">
+  <a href="https://github.com/sponsors/Viniciuscarvalho">
+    <img src="https://img.shields.io/badge/Sponsor_OmniLabs-%E2%9D%A4-ea4aaa?style=for-the-badge&logo=github-sponsors&logoColor=white" alt="Sponsor OmniLabs">
+  </a>
+</p>
+
+Your sponsorship helps fund:
+- New specialized agents and analysis dimensions
+- Improved evaluation framework and grader coverage
+- Better documentation and onboarding experience
+- Community support and issue triage
 
 ---
 
