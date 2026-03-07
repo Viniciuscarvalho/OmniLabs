@@ -1,6 +1,28 @@
-# OmniLabs — Agent Team Prompt
+# OmniLabs — Analysis Prompt
 
 Copy and paste the prompt below into Claude Code to launch a full multi-perspective analysis of your project.
+
+---
+
+## How it works
+
+Claude Code orchestrates 5 subagents defined in `.claude/agents/`. The main conversation delegates to each subagent, which runs in its own context with read-only access to your codebase. Subagents cannot spawn other subagents — Claude Code handles all orchestration.
+
+```
+Claude Code (main conversation = orchestrator)
+    |
+    |-- delegates to 4 analyst subagents in parallel:
+    |       business-product (Sonnet)
+    |       financial-cost (Sonnet)
+    |       technical-architecture (Sonnet)
+    |       devils-advocate (Sonnet)
+    |
+    |-- waits for all 4 to return results
+    |
+    |-- delegates to lead-synthesis (Opus) with all 4 reports as context
+    |
+    |-- lead-synthesis produces the OmniLabs Report + saves dashboard
+```
 
 ---
 
@@ -9,21 +31,23 @@ Copy and paste the prompt below into Claude Code to launch a full multi-perspect
 ```
 Run a full OmniLabs strategic analysis of this project.
 
-Create a team called "omnilabs-analysis" with 5 agents:
+Use the following subagents from .claude/agents/:
 
-1. **business-product** (Sonnet) — Analyze market opportunity, product-market fit, competitive landscape, and go-to-market strategy. Read the codebase to understand what the product actually does.
+1. Launch these 4 subagents IN PARALLEL to analyze the codebase:
+   - business-product — Market opportunity, PMF, competitive landscape, GTM
+   - financial-cost — Infrastructure costs, TCO at 1K/10K/100K/1M users, ROI
+   - technical-architecture — Architecture scoring across 6 dimensions (1-10)
+   - devils-advocate — Stress-test findings, challenge assumptions, pre-mortem
 
-2. **financial-cost** (Sonnet) — Model infrastructure costs, calculate TCO at different scales (1K/10K/100K/1M users), evaluate build-vs-buy decisions, and project ROI. Examine package manifests, configs, and env vars for cost signals.
+2. WAIT for all 4 subagents to complete and collect their full reports.
 
-3. **technical-architecture** (Sonnet) — Evaluate system architecture across 6 dimensions: scalability, reliability, maintainability, security, observability, and operability. Score each 1-10 with evidence from code.
+3. Launch the lead-synthesis subagent, passing it ALL 4 analyst reports as context. It will:
+   - Synthesize findings into the OmniLabs Report
+   - Make a GO / NO-GO / CONDITIONAL GO decision
+   - Score all dimensions and produce a 30/60/90-day roadmap
+   - Save results to the dashboard (scripts/save-report.sh + scripts/generate-dashboard.sh --open)
 
-4. **devils-advocate** (Sonnet) — Stress-test all findings from the other 3 analysts. Challenge assumptions with evidence from code. Run pre-mortem analysis, identify blind spots, and strengthen recommendations through constructive challenge.
-
-5. **lead-synthesis** (Opus) — Wait for all 4 analysts to complete. Then synthesize their findings into the OmniLabs Report: GO/NO-GO/CONDITIONAL GO decision, dimension scores, consensus vs contested findings, risk matrix, and 30/60/90-day implementation roadmap.
-
-Run analysts 1-4 in parallel. Agent 5 (lead-synthesis) should start only after all 4 analysts have completed their reports. The devil's advocate should specifically reference and challenge findings from the other 3 analysts.
-
-IMPORTANT: After the lead-synthesis agent produces the final OmniLabs Report, it MUST also save a structured JSON summary to the dashboard by running `bash scripts/save-report.sh "<project-name>"` and writing the summary.json to the returned directory. Then run `bash scripts/generate-dashboard.sh --open` to update and open the dashboard in the browser.
+The devil's advocate should specifically reference and challenge findings from the other 3 analysts.
 ```
 
 ---

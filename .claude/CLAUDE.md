@@ -2,9 +2,9 @@
 
 ## What is OmniLabs?
 
-OmniLabs is a plug-and-play agent teams framework for Claude Code that provides multi-perspective strategic analysis for any project. It deploys 5 specialized agents that analyze your project from business, financial, technical, and adversarial perspectives, then synthesizes everything into a single actionable report.
+OmniLabs is a plug-and-play subagent framework for Claude Code that provides multi-perspective strategic analysis for any project. It deploys 5 specialized subagents that analyze your project from business, financial, technical, and adversarial perspectives, then synthesizes everything into a single actionable report.
 
-## Agent Team
+## Subagents
 
 | Agent | Role | Model |
 |-------|------|-------|
@@ -12,14 +12,17 @@ OmniLabs is a plug-and-play agent teams framework for Claude Code that provides 
 | `financial-cost` | Cost modeling, TCO, ROI, build-vs-buy | Sonnet |
 | `technical-architecture` | Scalability, reliability, security, maintainability | Sonnet |
 | `devils-advocate` | Risk assessment, assumption challenging, blind spots | Sonnet |
-| `lead-synthesis` | Orchestration, synthesis, final OmniLabs Report | **Opus** |
+| `lead-synthesis` | Synthesis, final OmniLabs Report with GO/NO-GO decision | **Opus** |
+
+All subagents are defined in `.claude/agents/` and follow the official Claude Code subagent spec. The main Claude Code conversation orchestrates them — subagents do not spawn other subagents.
 
 ## How to Use
 
 1. Copy the `.claude/` folder into your project root
 2. Open Claude Code in your project
-3. Use the prompt from `agent-team-prompt.md` to launch the full analysis
-4. Or invoke individual agents directly for focused analysis
+3. Paste: `Run a full OmniLabs strategic analysis of this project.`
+4. Claude Code launches 4 analysts in parallel, then passes results to lead-synthesis
+5. Or invoke individual subagents directly for focused analysis
 
 ## Design Principles
 

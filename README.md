@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <strong>Plug-and-play agent teams framework for Claude Code.</strong><br>
+  <strong>Plug-and-play subagent framework for Claude Code.</strong><br>
   Multi-perspective strategic analysis for any project.<br>
   <sub>Inspired by <a href="https://github.com/EricTechPro/awesome-claude-code-agents">Eric Tech's</a> work on Claude Code sub-agent structures.</sub>
 </p>
@@ -54,7 +54,7 @@ OmniLabs deploys **5 specialized AI agents** that analyze your project from busi
          └──────────────────────────────────────────────────────────────┘
 ```
 
-The 4 analyst agents run **in parallel**, reading your actual codebase. The Lead Synthesis agent (powered by **Opus** for deeper reasoning) waits for all analysts to complete, then produces the final report.
+The **main Claude Code conversation** orchestrates everything — it launches 4 analyst subagents in parallel, waits for results, then delegates to the Lead Synthesis subagent (powered by **Opus**) which produces the final report. Subagents cannot spawn other subagents; this follows the [official Claude Code subagent spec](https://code.claude.com/docs/en/sub-agents).
 
 ---
 
@@ -66,9 +66,9 @@ The 4 analyst agents run **in parallel**, reading your actual codebase. The Lead
 | 🟢 | `financial-cost` | Sonnet | Infrastructure costs, TCO modeling, build-vs-buy, ROI projections |
 | 🔵 | `technical-architecture` | Sonnet | Architecture scoring across 6 dimensions (scalability, reliability, security, maintainability, observability, operability) |
 | 🔴 | `devils-advocate` | Sonnet | Stress-testing, assumption challenging, pre-mortem analysis, blind spot identification |
-| 🟣 | `lead-synthesis` | **Opus** | Orchestration, convergence/divergence analysis, final OmniLabs Report |
+| 🟣 | `lead-synthesis` | **Opus** | Synthesis, convergence/divergence analysis, final OmniLabs Report |
 
-The 4 analysts use **read-only tools** (Read, Grep, Glob, Bash) for safety. The lead inherits all tools for coordination.
+The 4 analysts use **read-only tools** (Read, Grep, Glob, Bash). The lead-synthesis also has Write for saving dashboard reports. All subagents are defined in `.claude/agents/` as Markdown files with YAML frontmatter.
 
 ---
 
@@ -591,7 +591,7 @@ OmniLabs/
 ## Requirements
 
 - [Claude Code](https://claude.com/claude-code) CLI
-- Agent teams support (enabled automatically via `settings.json`)
+- Subagents defined in `.claude/agents/` (loaded automatically by Claude Code)
 
 ---
 

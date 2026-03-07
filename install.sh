@@ -127,7 +127,7 @@ install_fresh() {
   # Download settings.json
   print_info "Creating settings.json..."
   curl -sL "${OMNILABS_REPO}/.claude/settings.json" -o "${SETTINGS_FILE}"
-  print_success "Created settings.json with agent teams enabled"
+  print_success "Created settings.json"
 
   # Download CLAUDE.md
   print_info "Downloading CLAUDE.md..."
@@ -153,21 +153,11 @@ install_merge() {
 
   # Handle settings.json
   if [ -f "${SETTINGS_FILE}" ]; then
-    if grep -q "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS" "${SETTINGS_FILE}" 2>/dev/null; then
-      print_success "Agent teams already enabled in settings.json"
-    else
-      print_warning "settings.json exists but agent teams may not be enabled"
-      print_warning "Add this to your .claude/settings.json manually:"
-      echo ""
-      echo '  "env": {'
-      echo '    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"'
-      echo '  }'
-      echo ""
-    fi
+    print_success "settings.json already exists (keeping your configuration)"
   else
     print_info "Creating settings.json..."
     curl -sL "${OMNILABS_REPO}/.claude/settings.json" -o "${SETTINGS_FILE}"
-    print_success "Created settings.json with agent teams enabled"
+    print_success "Created settings.json"
   fi
 
   # Handle CLAUDE.md
