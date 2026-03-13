@@ -1,6 +1,13 @@
 # Generated dashboard (regenerated from template)
 dashboard/index.html
 
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+.venv/
+
 # OS
 .DS_Store
 
