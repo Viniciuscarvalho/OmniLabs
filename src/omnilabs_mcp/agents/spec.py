@@ -30,6 +30,21 @@ class AgentSpec:
         if len(self.system_prompt) < 100:
             raise ValueError(f"Agent '{self.id}' system_prompt too short — agents need detailed prompts.")
 
+    @property
+    def prompt_tokens_estimate(self) -> int:
+        """Rough token count of the system prompt (~4 chars per token)."""
+        return len(self.system_prompt) // 4
+
+    @property
+    def cost_tier(self) -> str:
+        """Token cost tier: light (<1K), medium (1-3K), heavy (>3K)."""
+        t = self.prompt_tokens_estimate
+        if t < 1000:
+            return "light"
+        elif t < 3000:
+            return "medium"
+        return "heavy"
+
     def to_catalog_entry(self) -> dict:
         return {
             "id": self.id,
@@ -38,4 +53,6 @@ class AgentSpec:
             "focus": self.focus,
             "key_outputs": self.key_outputs,
             "tags": self.tags,
+            "prompt_tokens": self.prompt_tokens_estimate,
+            "cost_tier": self.cost_tier,
         }

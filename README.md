@@ -5,7 +5,7 @@
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-ffd60a?style=flat-square" alt="MIT License"></a>
   <a href="https://claude.com/claude-code"><img src="https://img.shields.io/badge/Claude_Code-compatible-a855f7?logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMiIvPjwvc3ZnPg==&logoColor=white&style=flat-square" alt="Claude Code"></a>
-  <a href="#built-in-agents"><img src="https://img.shields.io/badge/Agents-4_built--in-22c55e?style=flat-square" alt="4 Built-in Agents"></a>
+  <a href="#built-in-agents"><img src="https://img.shields.io/badge/Agents-17+-22c55e?style=flat-square" alt="17+ Agents"></a>
   <a href="#create-your-own-agent"><img src="https://img.shields.io/badge/Extensible-YAML--driven-3b82f6?style=flat-square" alt="YAML-driven"></a>
   <a href="#"><img src="https://img.shields.io/badge/Language-agnostic-9ca3af?style=flat-square" alt="Language Agnostic"></a>
   <a href="https://github.com/sponsors/Viniciuscarvalho"><img src="https://img.shields.io/badge/Sponsor-%E2%9D%A4-ea4aaa?style=flat-square&logo=github-sponsors&logoColor=white" alt="Sponsor"></a>
@@ -21,13 +21,15 @@
 
 ## What It Does
 
-OmniLabs is an **MCP server** that turns Claude Code into a team of specialized analysts. It ships with 4 built-in agents that analyze your project from business, financial, technical, and adversarial perspectives — then synthesize everything into a single actionable report with a **GO / NO-GO / CONDITIONAL GO** decision.
+OmniLabs is an **MCP server** that turns Claude Code into a team of specialized analysts. It ships with 4 core agents and supports 13+ marketing agents, with a **3-gate control flow** (Discover → Plan → Execute) that previews token cost before anything runs.
 
+- **Token-aware** — preview prompt cost before execution, nothing runs by default
 - **YAML-driven** — each agent is a single `.yaml` file, no code required
 - **Extensible** — drop a YAML in `~/.omnilabs/agents/` and it's instantly available
+- **Presets** — named groups (core, health-check, marketing, gtm) for common scenarios
 - **Code-first** — agents read the actual codebase, not just documentation
 - **Evidence-based** — every finding must be traceable to code or data
-- **Live dashboard** — real-time progress at `http://localhost:3141`
+- **Live dashboard** — real-time progress at `http://localhost:3141` with cost tier badges
 - **Language-agnostic** — works with any tech stack, any language, any framework
 
 ---
@@ -38,25 +40,23 @@ OmniLabs is an **MCP server** that turns Claude Code into a team of specialized 
          ┌──────────────────────────────────────────────────────────────┐
          │                    CLAUDE CODE + MCP                         │
          │                                                              │
-         │   📊 Business    💰 Financial    🔧 Technical    🎯 Adversarial │
-         │      │              │                │              │        │
-         │      │   (YAML agents auto-discovered by registry)  │        │
-         │      │              │                │              │        │
-         │      └──────────────┴────────┬───────┴──────────────┘        │
-         │                              │                               │
-         │                     🟣 Synthesized Report                    │
-         │                              │                               │
-         │                    ┌─────────▼──────────┐                    │
-         │                    │  OmniLabs Report   │                    │
-         │                    │  GO / NO-GO /      │                    │
-         │                    │  CONDITIONAL GO    │                    │
-         │                    └────────────────────┘                    │
+         │  Gate 1: DISCOVER                                            │
+         │  list_agents() / recommend_agents() / list_presets()         │
+         │                         │                                    │
+         │  Gate 2: PLAN                                                │
+         │  plan_analysis() → preview token cost                        │
+         │                         │                                    │
+         │  Gate 3: EXECUTE                                             │
+         │  start_analysis() → run_agent() → save_agent_result()       │
+         │                         │                                    │
+         │              🟣 Synthesized Report                           │
+         │              GO / NO-GO / CONDITIONAL GO                     │
          │                                                              │
          │              📡 Live dashboard at :3141                      │
          └──────────────────────────────────────────────────────────────┘
 ```
 
-OmniLabs runs as an **MCP server** inside Claude Code. When you start an analysis, Claude Code calls the MCP tools to get each agent's specialized prompt, reads your codebase through that lens, saves results, and synthesizes a final report. The live dashboard updates in real-time as agents complete.
+OmniLabs runs as an **MCP server** inside Claude Code. The 3-gate flow ensures you choose which agents run and preview token cost before anything executes. The live dashboard updates in real-time as agents complete.
 
 ---
 
@@ -93,21 +93,26 @@ Add OmniLabs to your Claude Code MCP settings (`~/.claude/settings.json`):
 Open Claude Code in any project and paste:
 
 ```
-Analyze this project with OmniLabs
+Analyze this project with OmniLabs using the core preset
 ```
 
-That's it. Claude Code will:
+Or let OmniLabs recommend agents for your task:
 
-1. Call `start_analysis` to create a session
-2. Get each agent's specialized prompt via `get_agent_prompt`
-3. Read your codebase through each agent's lens
-4. Save results with `save_agent_result`
-5. Synthesize a unified report with GO / NO-GO / CONDITIONAL GO
-6. Dashboard updates live at `http://localhost:3141`
+```
+Use OmniLabs to recommend agents for improving our SEO
+```
+
+Claude Code will:
+
+1. **Discover** — browse agents with `list_agents` or get recommendations with `recommend_agents`
+2. **Plan** — preview token cost with `plan_analysis` before committing
+3. **Execute** — run each agent one at a time via `run_agent`, save results
+4. **Synthesize** — produce unified report with GO / NO-GO / CONDITIONAL GO
+5. Dashboard updates live at `http://localhost:3141`
 
 ---
 
-## Built-in Agents
+## Built-in Agents (Core)
 
 |     | Agent         | Focus                                                    | Key Outputs                                                                            |
 | --- | ------------- | -------------------------------------------------------- | -------------------------------------------------------------------------------------- |
@@ -116,32 +121,84 @@ That's it. Claude Code will:
 | 🔧  | `technical`   | Architecture quality across 6 dimensions                 | Scalability, reliability, security, maintainability, observability, operability scores |
 | 🎯  | `adversarial` | Stress-testing assumptions, blind spots                  | Risk heat map, failure scenarios, pre-mortem analysis                                  |
 
-All agents are defined in `src/omnilabs_mcp/agents/builtin/*.yaml` and auto-discovered at startup.
+Core agents are in `src/omnilabs_mcp/agents/builtin/*.yaml` and auto-discovered at startup.
+
+## Marketing Agents (13)
+
+Convert from markdown source and install to `~/.omnilabs/agents/`:
+
+```bash
+python scripts/convert_agents.py ~/marketing-agent ~/.omnilabs/agents/
+```
+
+| Icon | Agent                         | Focus                                    |
+| ---- | ----------------------------- | ---------------------------------------- |
+| 🔍   | `seo-strategist`              | Keyword research, technical SEO, on-page |
+| 📝   | `content-strategist`          | Editorial calendars, content audits      |
+| ✍️   | `copywriter`                  | Landing pages, ads, emails, product copy |
+| 📱   | `social-media-manager`        | Social strategy, content calendars       |
+| 🤝   | `community-manager`           | Community building, engagement           |
+| 🎯   | `product-marketing-manager`   | Positioning, messaging, launches         |
+| 🚀   | `gtm-strategist`              | Go-to-market planning, channel strategy  |
+| 📧   | `email-marketing-specialist`  | Automation flows, segmentation           |
+| 🔄   | `lifecycle-marketing-manager` | Onboarding, retention, churn prevention  |
+| 📊   | `marketing-analyst`           | Attribution, funnel analysis, ROI        |
+| 📈   | `cro-specialist`              | A/B testing, funnel optimization         |
+| 📢   | `pr-strategist`               | Media outreach, press releases           |
+| 💬   | `communications-manager`      | Internal comms, brand voice              |
+
+## Presets
+
+| Preset          | Agents                                                          | Use Case                  |
+| --------------- | --------------------------------------------------------------- | ------------------------- |
+| `core`          | business, financial, technical, adversarial                     | Full strategic analysis   |
+| `health-check`  | technical, adversarial                                          | Quick architecture review |
+| `due-diligence` | business, financial, adversarial                                | Investment analysis       |
+| `marketing`     | All agents with "marketing" tag                                 | Marketing strategy        |
+| `gtm`           | business, gtm-strategist, product-marketing-manager, copywriter | Go-to-market readiness    |
 
 ---
 
 ## MCP Tools & Resources
 
-### Tools
+### Tools — Discovery (Gate 1)
 
-| Tool                                 | Description                                            |
-| ------------------------------------ | ------------------------------------------------------ |
-| `start_analysis(repo_path, agents?)` | Start a new analysis session (all agents or a subset)  |
-| `get_agent_prompt(agent)`            | Get the specialized system prompt for an agent         |
-| `save_agent_result(agent, analysis)` | Save completed analysis from an agent                  |
-| `mark_agent_error(agent, error)`     | Mark an agent as failed                                |
-| `list_agents(tag?)`                  | List all registered agents, optionally filtered by tag |
-| `get_session_status()`               | Check status of all agents in the current session      |
-| `get_agent_output(agent)`            | Get full output from a completed agent                 |
-| `list_sessions()`                    | List all analysis sessions                             |
+| Tool                     | Description                                    |
+| ------------------------ | ---------------------------------------------- |
+| `list_agents(tag?)`      | Browse agents with focus, tags, and token cost |
+| `recommend_agents(task)` | Suggest agents based on task description       |
+| `list_presets()`         | Show named agent presets with token totals     |
+
+### Tools — Planning (Gate 2)
+
+| Tool                                         | Description                                |
+| -------------------------------------------- | ------------------------------------------ |
+| `plan_analysis(repo_path, agents?, preset?)` | Preview token cost before running anything |
+
+### Tools — Execution (Gate 3)
+
+| Tool                                          | Description                                   |
+| --------------------------------------------- | --------------------------------------------- |
+| `start_analysis(repo_path, agents?, preset?)` | Start session with specific agents (required) |
+| `run_agent(agent)`                            | Run ONE agent, returns its prompt             |
+| `save_agent_result(agent, analysis)`          | Save output, shows next in queue              |
+| `mark_agent_error(agent, error)`              | Mark failed, skip to next                     |
+
+### Tools — Query
+
+| Tool                      | Description                                   |
+| ------------------------- | --------------------------------------------- |
+| `get_session_status()`    | Check status of all agents in current session |
+| `get_agent_output(agent)` | Get full output from a completed agent        |
+| `list_sessions()`         | List all analysis sessions                    |
 
 ### Prompts
 
-| Prompt                                | Description                           |
-| ------------------------------------- | ------------------------------------- |
-| `full_analysis(repo_path)`            | Run all registered agents             |
-| `focused_analysis(repo_path, agents)` | Run specific agents (comma-separated) |
-| `quick_health_check(repo_path)`       | Quick technical + adversarial check   |
+| Prompt                                   | Description                              |
+| ---------------------------------------- | ---------------------------------------- |
+| `analyze(repo_path, agents)`             | Run specific agents (comma-separated)    |
+| `analyze_with_preset(repo_path, preset)` | Run a preset group of agents             |
+| `smart_analyze(repo_path, goal)`         | Let OmniLabs recommend agents for a goal |
 
 ### Resources
 
@@ -226,7 +283,7 @@ The dashboard runs automatically at `http://localhost:3141` when the MCP server 
 ### What it shows
 
 - **Session info** — current repo being analyzed
-- **Agent cards** — status (idle → running → completed/failed), duration, focus area, tags
+- **Agent cards** — status (idle → running → completed/failed), duration, focus area, tags, cost tier badges
 - **Live updates** — polls every 1.5s, no manual refresh needed
 - **Agent count** — total registered agents (built-in + custom)
 
@@ -234,24 +291,24 @@ State is stored in `~/.omnilabs/state.json` and agent metadata in `~/.omnilabs/a
 
 ---
 
-## Running Individual Agents
+## Running Agents
 
-For a focused deep-dive on one dimension:
-
-```
-Run just the technical analysis with OmniLabs on this project
-```
-
-Or use the `focused_analysis` prompt:
+Use presets for common scenarios:
 
 ```
-Run OmniLabs focused analysis on ~/my-project with agents: business, adversarial
+Analyze ~/my-project with OmniLabs using the health-check preset
 ```
 
-Or the quick health check:
+Or pick specific agents:
 
 ```
-Run OmniLabs quick health check on this project
+Analyze ~/my-project with OmniLabs agents: technical, adversarial
+```
+
+Or let OmniLabs recommend based on your goal:
+
+```
+Use OmniLabs smart_analyze on ~/my-project with goal: improve marketing funnel
 ```
 
 ---
@@ -292,6 +349,8 @@ OmniLabs/
 │   │   └── store.py                  # In-memory session store + JSON sync
 │   └── dashboard/
 │       └── app.py                    # Live dashboard at :3141
+├── scripts/
+│   └── convert_agents.py             # Convert .md agents to .yaml format
 ├── examples/
 │   ├── TEMPLATE.yaml                 # Starter template for new agents
 │   └── security.yaml                 # Example community agent
