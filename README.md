@@ -61,13 +61,13 @@ The **main Claude Code conversation** orchestrates everything — it launches 4 
 
 ## Agents
 
-| | Agent | Model | Role |
-|---|-------|-------|------|
-| 🟡 | `business-product` | Sonnet | Market opportunity, product-market fit, competitive landscape, go-to-market |
-| 🟢 | `financial-cost` | Sonnet | Infrastructure costs, TCO modeling, build-vs-buy, ROI projections |
-| 🔵 | `technical-architecture` | Sonnet | Architecture scoring across 6 dimensions (scalability, reliability, security, maintainability, observability, operability) |
-| 🔴 | `devils-advocate` | Sonnet | Stress-testing, assumption challenging, pre-mortem analysis, blind spot identification |
-| 🟣 | `lead-synthesis` | **Opus** | Synthesis, convergence/divergence analysis, final OmniLabs Report |
+|     | Agent                    | Model    | Role                                                                                                                       |
+| --- | ------------------------ | -------- | -------------------------------------------------------------------------------------------------------------------------- |
+| 🟡  | `business-product`       | Sonnet   | Market opportunity, product-market fit, competitive landscape, go-to-market                                                |
+| 🟢  | `financial-cost`         | Sonnet   | Infrastructure costs, TCO modeling, build-vs-buy, ROI projections                                                          |
+| 🔵  | `technical-architecture` | Sonnet   | Architecture scoring across 6 dimensions (scalability, reliability, security, maintainability, observability, operability) |
+| 🔴  | `devils-advocate`        | Sonnet   | Stress-testing, assumption challenging, pre-mortem analysis, blind spot identification                                     |
+| 🟣  | `lead-synthesis`         | **Opus** | Synthesis, convergence/divergence analysis, final OmniLabs Report                                                          |
 
 The 4 analysts use **read-only tools** (Read, Grep, Glob, Bash). The lead-synthesis also has Write for saving dashboard reports. All subagents are defined in `.claude/agents/` as Markdown files with YAML frontmatter.
 
@@ -106,7 +106,136 @@ Copy individual agent files from `.claude/agents/` into your project's `.claude/
 
 ---
 
-## Running an Analysis
+## MCP Server (Local Dashboard)
+
+OmniLabs also ships as an **MCP server** that gives you a live dashboard at `http://localhost:3141` showing real-time agent status. Claude Code IS the agent — the server delivers specialized prompts and tracks session state. **No API key required.**
+
+### Prerequisites
+
+- [Python 3.11+](https://www.python.org/downloads/)
+- [uv](https://docs.astral.sh/uv/) (Python package manager)
+- [Claude Code](https://claude.com/claude-code) CLI
+
+### Setup
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/Viniciuscarvalho/OmniLabs.git
+cd OmniLabs
+
+# 2. Install dependencies
+uv sync
+
+# 3. Register with Claude Code
+claude mcp add omnilabs -- uv run --directory $(pwd) python -m omnilabs_mcp
+```
+
+That's it. The server is now available inside Claude Code.
+
+### Usage
+
+Open Claude Code in **any project** you want to analyze:
+
+```bash
+cd ~/projects/my-app
+claude
+```
+
+Then use natural language:
+
+```
+# Full 4-agent analysis
+Analyze this project with OmniLabs
+
+# Single agent
+Run just the technical agent on this repo
+
+# Check results
+What did the adversarial agent find?
+```
+
+The dashboard opens automatically at **http://localhost:3141** and auto-refreshes every 1.5 seconds.
+
+### How It Works
+
+```
+You ask Claude Code to analyze a project
+        |
+        v
+Claude Code calls start_analysis → creates a session
+        |
+        v
+Claude Code calls get_agent_prompt("technical") → gets expert prompt
+        |
+        v
+Claude Code reads your codebase and produces the analysis AS that agent
+        |
+        v
+Claude Code calls save_agent_result → stores output, updates dashboard
+        |
+        v
+Repeat for each agent, then synthesize a unified report
+```
+
+### MCP Tools
+
+| Tool                 | Purpose                                  |
+| -------------------- | ---------------------------------------- |
+| `start_analysis`     | Create a new analysis session            |
+| `get_agent_prompt`   | Get specialized prompt for an agent role |
+| `save_agent_result`  | Store completed analysis                 |
+| `mark_agent_error`   | Record agent failure                     |
+| `get_session_status` | Check all agent statuses                 |
+| `get_agent_output`   | Retrieve full analysis text              |
+| `list_sessions`      | List all sessions                        |
+
+### MCP Prompts
+
+| Prompt                     | Description                   |
+| -------------------------- | ----------------------------- |
+| `full_analysis`            | All 4 agents + unified report |
+| `quick_health_check`       | Technical + adversarial only  |
+| `investment_due_diligence` | Business + financial only     |
+
+### Architecture
+
+```
+src/omnilabs_mcp/
+├── __init__.py
+├── __main__.py
+├── server.py              # MCP server: tools, resources, prompts
+├── agents/
+│   └── prompts.py         # 4 specialized system prompts
+├── core/
+│   ├── models.py          # Pydantic: AgentType, AgentResult, Session
+│   └── store.py           # Session store → ~/.omnilabs/state.json
+└── dashboard/
+    └── app.py             # HTTP server + live dashboard (port 3141)
+```
+
+### Development
+
+```bash
+uv sync --extra dev
+uv run pytest
+uv run ruff check src/
+
+# Test with MCP Inspector
+uv run fastmcp dev src/omnilabs_mcp/server.py
+```
+
+### Uninstall
+
+```bash
+claude mcp remove omnilabs
+```
+
+---
+
+## Running an Analysis (Subagent Mode)
+
+> The subagent mode uses `.claude/agents/` files directly — no MCP server needed.
+> See [MCP Server](#mcp-server-local-dashboard) above for the dashboard-enabled mode.
 
 ### Step 1: Open Claude Code in your project
 
@@ -159,6 +288,7 @@ You paste the prompt
 ```
 
 Each agent has **read-only access** to your codebase (Read, Grep, Glob, Bash). They examine:
+
 - Source code and architecture patterns
 - `package.json`, `Dockerfile`, `terraform`, CI configs
 - Test coverage and quality
@@ -187,26 +317,26 @@ Run the devils-advocate challenge on this project.
 
 Each agent has a dedicated prompt file with detailed evaluation criteria:
 
-| | Agent | Prompt File | What It Analyzes |
-|---|-------|-------------|------------------|
-| 🟡 | Business & Product | [`business-product-analysis.md`](business-product-analysis.md) | Market opportunity, PMF, competitive landscape, GTM, business model |
-| 🟢 | Financial & Cost | [`financial-cost-analysis.md`](financial-cost-analysis.md) | Infrastructure costs, TCO at 4 scales, build-vs-buy, unit economics |
-| 🔵 | Technical Architecture | [`technical-architecture-review.md`](technical-architecture-review.md) | 6 dimensions: scalability, reliability, maintainability, security, observability, operability |
-| 🔴 | Devil's Advocate | [`devil-advocate-challenge.md`](devil-advocate-challenge.md) | Assumption stress-testing, pre-mortem, blind spots, failure scenarios |
+|     | Agent                  | Prompt File                                                            | What It Analyzes                                                                              |
+| --- | ---------------------- | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| 🟡  | Business & Product     | [`business-product-analysis.md`](business-product-analysis.md)         | Market opportunity, PMF, competitive landscape, GTM, business model                           |
+| 🟢  | Financial & Cost       | [`financial-cost-analysis.md`](financial-cost-analysis.md)             | Infrastructure costs, TCO at 4 scales, build-vs-buy, unit economics                           |
+| 🔵  | Technical Architecture | [`technical-architecture-review.md`](technical-architecture-review.md) | 6 dimensions: scalability, reliability, maintainability, security, observability, operability |
+| 🔴  | Devil's Advocate       | [`devil-advocate-challenge.md`](devil-advocate-challenge.md)           | Assumption stress-testing, pre-mortem, blind spots, failure scenarios                         |
 
 ### The OmniLabs Report
 
 The lead-synthesis agent produces a structured executive report:
 
-| Section | Description |
-|---------|-------------|
-| **Decision** | GO / NO-GO / CONDITIONAL GO with confidence level |
-| **Dimension Scores** | Quantitative ratings across all analysis dimensions |
-| **Consensus Findings** | Where 3+ analysts agree (high confidence) |
-| **Contested Findings** | Where analysts disagree, with evidence from both sides |
-| **Blind Spots** | Issues no single analyst fully addressed |
-| **Risk Matrix** | Probability x Impact with mitigations |
-| **Implementation Roadmap** | 30/60/90-day phased action plan |
+| Section                    | Description                                            |
+| -------------------------- | ------------------------------------------------------ |
+| **Decision**               | GO / NO-GO / CONDITIONAL GO with confidence level      |
+| **Dimension Scores**       | Quantitative ratings across all analysis dimensions    |
+| **Consensus Findings**     | Where 3+ analysts agree (high confidence)              |
+| **Contested Findings**     | Where analysts disagree, with evidence from both sides |
+| **Blind Spots**            | Issues no single analyst fully addressed               |
+| **Risk Matrix**            | Probability x Impact with mitigations                  |
+| **Implementation Roadmap** | 30/60/90-day phased action plan                        |
 
 See [`agent-team-prompt.md`](agent-team-prompt.md) for the full orchestration prompt with all configuration options.
 
@@ -222,13 +352,13 @@ Analysis results are persisted in a **visual dashboard** that opens in your brow
 
 ### What the dashboard shows
 
-| Section | Description |
-|---------|-------------|
-| **Stats bar** | Total analyses, GO / NO-GO / CONDITIONAL counts |
-| **Latest analysis** | Decision, composite score, dimension scores, conditions, consensus |
-| **Agent reports** | Status and score for each of the 5 agents |
-| **Analysis history** | Every past analysis with scores and decisions |
-| **Knowledge base** | Memory file count and Ollama connection status |
+| Section              | Description                                                        |
+| -------------------- | ------------------------------------------------------------------ |
+| **Stats bar**        | Total analyses, GO / NO-GO / CONDITIONAL counts                    |
+| **Latest analysis**  | Decision, composite score, dimension scores, conditions, consensus |
+| **Agent reports**    | Status and score for each of the 5 agents                          |
+| **Analysis history** | Every past analysis with scores and decisions                      |
+| **Knowledge base**   | Memory file count and Ollama connection status                     |
 
 ### Automatic flow
 
@@ -326,11 +456,11 @@ The `summary.json` format:
 
 ## Examples
 
-| Scenario | Description |
-|----------|-------------|
-| [SaaS Product Evaluation](examples/saas-evaluation.md) | Should we launch this B2B analytics platform? |
-| [Technical Migration](examples/tech-migration.md) | Should we migrate from Rails monolith to Go microservices? |
-| [Market Entry](examples/market-entry.md) | Should we expand from individual devs to enterprise? |
+| Scenario                                               | Description                                                |
+| ------------------------------------------------------ | ---------------------------------------------------------- |
+| [SaaS Product Evaluation](examples/saas-evaluation.md) | Should we launch this B2B analytics platform?              |
+| [Technical Migration](examples/tech-migration.md)      | Should we migrate from Rails monolith to Go microservices? |
+| [Market Entry](examples/market-entry.md)               | Should we expand from individual devs to enterprise?       |
 
 ---
 
@@ -349,13 +479,13 @@ Agent outputs are non-deterministic. The same prompt can produce different resul
 
 Each of the 5 agents has its own eval suite:
 
-| Agent | Tasks | Code Grader Checks | Rubric Dimensions |
-|-------|-------|--------------------|-------------------|
-| `business-product` | 4 (SaaS, marketplace, empty repo, OSS tool) | Score format, 7 sections, moat label, TAM/SAM/SOM, competitors | Analysis Depth, Code Grounding, Actionability, Risk Awareness, Honesty |
-| `financial-cost` | 4 (AWS stack, serverless, no infra, multi-cloud) | Score format, 6 sections, cost table, scaling table, 4 scale tiers | Financial Rigor, Code Grounding, Scaling Accuracy, Optimization, Risk |
-| `technical-architecture` | 4 (monolith, microservices, no tests, legacy PHP) | Score format, 6 dimension scores, severity labels, timeline sections | Technical Accuracy, Code Grounding, Coverage, Prioritization, Constructiveness |
-| `devils-advocate` | 4 (overconfident analysts, minimal findings, strong project, no competitors) | Score format, 7 sections, risk heat map, failure scenarios, cross-references | Challenge Thoroughness, Evidence Quality, Cross-References, Blind Spots, Strengthening |
-| `lead-synthesis` | 3 (consensus, conflicting signals, mixed signals) | GO/NO-GO decision, confidence, composite score, 4 analyst references, roadmap | Synthesis Quality, Decision Clarity, Conflict Resolution, Completeness, Actionability |
+| Agent                    | Tasks                                                                        | Code Grader Checks                                                            | Rubric Dimensions                                                                      |
+| ------------------------ | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `business-product`       | 4 (SaaS, marketplace, empty repo, OSS tool)                                  | Score format, 7 sections, moat label, TAM/SAM/SOM, competitors                | Analysis Depth, Code Grounding, Actionability, Risk Awareness, Honesty                 |
+| `financial-cost`         | 4 (AWS stack, serverless, no infra, multi-cloud)                             | Score format, 6 sections, cost table, scaling table, 4 scale tiers            | Financial Rigor, Code Grounding, Scaling Accuracy, Optimization, Risk                  |
+| `technical-architecture` | 4 (monolith, microservices, no tests, legacy PHP)                            | Score format, 6 dimension scores, severity labels, timeline sections          | Technical Accuracy, Code Grounding, Coverage, Prioritization, Constructiveness         |
+| `devils-advocate`        | 4 (overconfident analysts, minimal findings, strong project, no competitors) | Score format, 7 sections, risk heat map, failure scenarios, cross-references  | Challenge Thoroughness, Evidence Quality, Cross-References, Blind Spots, Strengthening |
+| `lead-synthesis`         | 3 (consensus, conflicting signals, mixed signals)                            | GO/NO-GO decision, confidence, composite score, 4 analyst references, roadmap | Synthesis Quality, Decision Clarity, Conflict Resolution, Completeness, Actionability  |
 
 **19 tasks total** — covering happy-path, edge-case, and negative scenarios.
 **3 golden datasets** — reference projects (SaaS, high-risk DeFi, pre-MVP) with expected analysis patterns per agent.
@@ -391,15 +521,16 @@ bash evaluation/tests/test-graders.sh
 
 **Phase 1 (positive tests)** — golden outputs must PASS all grader checks:
 
-| Agent | Golden Output | Checks |
-|-------|--------------|--------|
-| `business-product` | `golden-outputs/golden-business-product.md` | 15 |
-| `financial-cost` | `golden-outputs/golden-financial-cost.md` | 17 |
-| `technical-architecture` | `golden-outputs/golden-technical-arch.md` | 19 |
-| `devils-advocate` | `golden-outputs/golden-devils-advocate.md` | 17 |
-| `lead-synthesis` | `golden-outputs/golden-lead-synthesis.md` | 19 |
+| Agent                    | Golden Output                               | Checks |
+| ------------------------ | ------------------------------------------- | ------ |
+| `business-product`       | `golden-outputs/golden-business-product.md` | 15     |
+| `financial-cost`         | `golden-outputs/golden-financial-cost.md`   | 17     |
+| `technical-architecture` | `golden-outputs/golden-technical-arch.md`   | 19     |
+| `devils-advocate`        | `golden-outputs/golden-devils-advocate.md`  | 17     |
+| `lead-synthesis`         | `golden-outputs/golden-lead-synthesis.md`   | 19     |
 
 **Phase 2 (negative tests)** — broken outputs must FAIL:
+
 - Empty files fail all 5 graders
 - Missing sections detected (business-product)
 - Missing scores detected (financial-cost)
@@ -497,22 +628,22 @@ Two types of memories, organized across 6 domains:
   └── decision_tooling_embedding-model-choice.md      # 📌 Tool selection
 ```
 
-| Type | Pattern | When to capture |
-|------|---------|-----------------|
+| Type          | Pattern                          | When to capture                                                             |
+| ------------- | -------------------------------- | --------------------------------------------------------------------------- |
 | **Learnings** | `learning_<topic>_<specific>.md` | Debugging discoveries, analysis patterns, workarounds, non-obvious findings |
-| **Decisions** | `decision_<domain>_<topic>.md` | Architecture choices, conventions, scoring calibration, methodology |
+| **Decisions** | `decision_<domain>_<topic>.md`   | Architecture choices, conventions, scoring calibration, methodology         |
 
 Domains: `analysis` · `evaluation` · `agent` · `framework` · `tooling` · `debugging`
 
 ### Stack
 
-| Layer | Component | Purpose |
-|-------|-----------|---------|
-| Embeddings | [Ollama](https://ollama.com) + `nomic-embed-text` | Local vector embeddings — no API keys, no cloud |
-| Search | [docs-mcp-server](https://github.com/arabold/docs-mcp-server) | Semantic search MCP over `.claude/memories/` |
-| Capture | `continuous-learning` skill | 4 templates: Learning, Decision, Analysis Pattern, Eval Finding |
-| Activation | `continuous-learning-activator.sh` | PreToolUse hook — reminds about knowledge capture |
-| Sync | `ollama-status.sh` | SessionStart hook — health check + memory indexing |
+| Layer      | Component                                                     | Purpose                                                         |
+| ---------- | ------------------------------------------------------------- | --------------------------------------------------------------- |
+| Embeddings | [Ollama](https://ollama.com) + `nomic-embed-text`             | Local vector embeddings — no API keys, no cloud                 |
+| Search     | [docs-mcp-server](https://github.com/arabold/docs-mcp-server) | Semantic search MCP over `.claude/memories/`                    |
+| Capture    | `continuous-learning` skill                                   | 4 templates: Learning, Decision, Analysis Pattern, Eval Finding |
+| Activation | `continuous-learning-activator.sh`                            | PreToolUse hook — reminds about knowledge capture               |
+| Sync       | `ollama-status.sh`                                            | SessionStart hook — health check + memory indexing              |
 
 ### Prerequisites
 
@@ -534,54 +665,38 @@ See [docs/continuous-learning.md](docs/continuous-learning.md) for the full guid
 
 ```
 OmniLabs/
+├── src/omnilabs_mcp/                    # MCP Server (pip-installable)
+│   ├── server.py                        # FastMCP: tools, resources, prompts
+│   ├── agents/prompts.py                # 4 specialized system prompts
+│   ├── core/models.py                   # Pydantic: AgentType, Session, Result
+│   ├── core/store.py                    # Session store → ~/.omnilabs/state.json
+│   └── dashboard/app.py                 # Live HTTP dashboard (port 3141)
+├── pyproject.toml                       # Package config (fastmcp + pydantic)
 ├── .claude/
-│   ├── agents/
+│   ├── agents/                          # Subagent definitions (alternative mode)
 │   │   ├── business-product.md          # 🟡 Business & Product Strategy
 │   │   ├── financial-cost.md            # 🟢 Financial & Cost Analysis
 │   │   ├── technical-architecture.md    # 🔵 Technical Architecture
 │   │   ├── devils-advocate.md           # 🔴 Devil's Advocate
 │   │   └── lead-synthesis.md            # 🟣 Lead Synthesis (Opus)
 │   ├── skills/continuous-learning/      # Knowledge capture skill
-│   │   ├── SKILL.md
-│   │   └── references/templates.md
 │   ├── hooks/                           # Session & tool hooks
-│   │   ├── ollama-status.sh
-│   │   └── continuous-learning-activator.sh
 │   ├── memories/                        # Knowledge base (markdown files)
 │   ├── settings.json
 │   └── CLAUDE.md
 ├── dashboard/
-│   └── template.html                    # Dashboard HTML template
-├── scripts/
-│   ├── generate-dashboard.sh            # Generates dashboard from reports
-│   └── save-report.sh                   # Saves agent reports as JSON
+│   └── template.html                    # Dashboard HTML template (subagent mode)
+├── scripts/                             # Utility scripts
 ├── reports/                             # Analysis reports (auto-generated)
-├── evaluation/
+├── evaluation/                          # Eval framework
 │   ├── tasks/                           # Eval test cases per agent
-│   ├── graders/
-│   │   ├── code-based/                  # Deterministic bash graders
-│   │   └── model-based/                 # LLM-as-Judge rubrics
-│   ├── golden-outputs/                  # Reference outputs that pass all graders
-│   ├── tests/
-│   │   └── test-graders.sh             # Automated grader test suite
+│   ├── graders/                         # Code-based + model-based graders
+│   ├── golden-outputs/                  # Reference outputs
+│   ├── tests/                           # Grader test suite
 │   ├── datasets/                        # Golden reference projects
-│   ├── harness/                         # Eval runner scripts
-│   └── results/                         # Eval output
-├── docs/
-│   ├── architecture.md                  # System architecture
-│   ├── contributing-evals.md            # Guide for adding evals
-│   ├── evaluation-guide.md             # How to run and interpret evals
-│   └── continuous-learning.md          # Continuous learning guide
-├── .github/workflows/                   # CI: lint + eval validation
-├── business-product-analysis.md         # Detailed prompt: business
-├── financial-cost-analysis.md           # Detailed prompt: financial
-├── technical-architecture-review.md     # Detailed prompt: architecture
-├── devil-advocate-challenge.md          # Detailed prompt: adversarial
-├── agent-team-prompt.md                 # Team orchestration prompt
-├── examples/
-│   ├── saas-evaluation.md
-│   ├── tech-migration.md
-│   └── market-entry.md
+│   └── harness/                         # Eval runner scripts
+├── docs/                                # Guides and architecture docs
+├── examples/                            # Example analysis scenarios
 ├── install.sh
 ├── README.md
 └── LICENSE
@@ -613,6 +728,7 @@ OmniLabs is free and open source. If it saves you time or helps you make better 
 </p>
 
 Your sponsorship helps fund:
+
 - New specialized agents and analysis dimensions
 - Improved evaluation framework and grader coverage
 - Better documentation and onboarding experience
