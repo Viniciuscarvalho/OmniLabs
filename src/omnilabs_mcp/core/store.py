@@ -1,22 +1,25 @@
-"""Session store — in-memory storage for analysis sessions.
-
-SEC-13 will add JSON file persistence for dashboard sync.
-"""
+"""Session store — in-memory + JSON file for dashboard sync."""
 
 from __future__ import annotations
 
+import json
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 
 from .models import AgentResult, AgentStatus, AgentType, AnalysisSession
 
+# Dashboard reads from this file
+STATE_FILE = Path.home() / ".omnilabs" / "state.json"
+
 
 class SessionStore:
-    """Manages analysis sessions in memory."""
+    """Manages analysis sessions and syncs state to disk for the dashboard."""
 
     def __init__(self) -> None:
         self._sessions: dict[str, AnalysisSession] = {}
         self._current_session_id: str | None = None
+        STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
 
     @property
     def current_session(self) -> AnalysisSession | None:
@@ -31,6 +34,7 @@ class SessionStore:
             session.agents[agent_type] = AgentResult(agent=agent_type)
         self._sessions[session_id] = session
         self._current_session_id = session_id
+        self._sync()
         return session
 
     def get_session(self, session_id: str) -> AnalysisSession | None:
@@ -44,6 +48,7 @@ class SessionStore:
         if session and agent in session.agents:
             session.agents[agent].status = AgentStatus.RUNNING
             session.agents[agent].started_at = datetime.now(timezone.utc)
+            self._sync()
 
     def save_result(
         self,
@@ -59,6 +64,7 @@ class SessionStore:
             result.completed_at = datetime.now(timezone.utc)
             result.summary = summary
             result.raw_output = raw_output
+            self._sync()
 
     def mark_failed(self, session_id: str, agent: AgentType, error: str) -> None:
         session = self._sessions.get(session_id)
@@ -66,6 +72,18 @@ class SessionStore:
             session.agents[agent].status = AgentStatus.FAILED
             session.agents[agent].completed_at = datetime.now(timezone.utc)
             session.agents[agent].error = error
+            self._sync()
+
+    def _sync(self) -> None:
+        """Write current state to JSON file for dashboard consumption."""
+        try:
+            state = {
+                "current_session_id": self._current_session_id,
+                "sessions": {sid: s.to_dict() for sid, s in self._sessions.items()},
+            }
+            STATE_FILE.write_text(json.dumps(state, indent=2, default=str))
+        except Exception:
+            pass  # Dashboard sync is best-effort
 
 
 # Global singleton
