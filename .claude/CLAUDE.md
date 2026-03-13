@@ -1,28 +1,39 @@
-# OmniLabs — Multi-Perspective Strategic Analysis Framework
+# OmniLabs — Extensible MCP Server for Multi-Perspective Analysis
 
 ## What is OmniLabs?
 
-OmniLabs is a plug-and-play subagent framework for Claude Code that provides multi-perspective strategic analysis for any project. It deploys 5 specialized subagents that analyze your project from business, financial, technical, and adversarial perspectives, then synthesizes everything into a single actionable report.
+OmniLabs is a YAML-driven MCP server that provides multi-perspective strategic analysis for any project. It auto-discovers agent definitions from YAML files and exposes them as MCP tools that Claude Code orchestrates to analyze your codebase.
 
-## Subagents
+## Architecture
 
-| Agent | Role | Model |
-|-------|------|-------|
-| `business-product` | Market opportunity, PMF, competitive analysis, GTM | Sonnet |
-| `financial-cost` | Cost modeling, TCO, ROI, build-vs-buy | Sonnet |
-| `technical-architecture` | Scalability, reliability, security, maintainability | Sonnet |
-| `devils-advocate` | Risk assessment, assumption challenging, blind spots | Sonnet |
-| `lead-synthesis` | Synthesis, final OmniLabs Report with GO/NO-GO decision | **Opus** |
+- **MCP Server** (`src/omnilabs_mcp/server.py`) — FastMCP-based, exposes tools/resources/prompts
+- **Agent Registry** (`src/omnilabs_mcp/agents/registry.py`) — auto-discovers YAML agents from `builtin/` and `~/.omnilabs/agents/`
+- **AgentSpec** (`src/omnilabs_mcp/agents/spec.py`) — the contract every agent fulfills
+- **Session Store** (`src/omnilabs_mcp/core/store.py`) — in-memory + JSON sync for dashboard
+- **Dashboard** (`src/omnilabs_mcp/dashboard/app.py`) — live at `http://localhost:3141`
 
-All subagents are defined in `.claude/agents/` and follow the official Claude Code subagent spec. The main Claude Code conversation orchestrates them — subagents do not spawn other subagents.
+## Built-in Agents (YAML)
+
+| Agent         | Focus                                          | File                              |
+| ------------- | ---------------------------------------------- | --------------------------------- |
+| `business`    | Product-market fit, competitive landscape, GTM | `agents/builtin/business.yaml`    |
+| `financial`   | Infrastructure costs, TCO, build-vs-buy        | `agents/builtin/financial.yaml`   |
+| `technical`   | Architecture quality across 6 dimensions       | `agents/builtin/technical.yaml`   |
+| `adversarial` | Stress-testing assumptions, blind spots        | `agents/builtin/adversarial.yaml` |
+
+Claude Code subagents (`.claude/agents/*.md`) are also available for direct subagent invocation.
 
 ## How to Use
 
-1. Copy the `.claude/` folder into your project root
-2. Open Claude Code in your project
-3. Paste: `Run a full OmniLabs strategic analysis of this project.`
-4. Claude Code launches 4 analysts in parallel, then passes results to lead-synthesis
-5. Or invoke individual subagents directly for focused analysis
+1. Install: `pip install -e .`
+2. Add to Claude Code MCP settings: `"omnilabs": { "command": "omnilabs-mcp" }`
+3. Paste: `Analyze this project with OmniLabs`
+4. Or run individual agents: `Run just the technical analysis with OmniLabs`
+
+## Adding Agents
+
+- **Personal**: drop a `.yaml` in `~/.omnilabs/agents/` (overrides built-in if same `id`)
+- **Contribute**: PR a `.yaml` to `src/omnilabs_mcp/agents/builtin/` (see CONTRIBUTING.md)
 
 ## Design Principles
 
