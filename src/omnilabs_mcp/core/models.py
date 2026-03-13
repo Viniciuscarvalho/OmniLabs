@@ -10,13 +10,6 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 
-class AgentType(str, Enum):
-    BUSINESS = "business"
-    FINANCIAL = "financial"
-    TECHNICAL = "technical"
-    ADVERSARIAL = "adversarial"
-
-
 class AgentStatus(str, Enum):
     IDLE = "idle"
     RUNNING = "running"
@@ -25,7 +18,7 @@ class AgentStatus(str, Enum):
 
 
 class AgentResult(BaseModel):
-    agent: AgentType
+    agent: str
     status: AgentStatus = AgentStatus.IDLE
     started_at: datetime | None = None
     completed_at: datetime | None = None
@@ -52,14 +45,14 @@ class AnalysisSession(BaseModel):
     session_id: str
     target_repo: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    agents: dict[AgentType, AgentResult] = Field(default_factory=dict)
+    agents: dict[str, AgentResult] = Field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "session_id": self.session_id,
             "target_repo": self.target_repo,
             "created_at": self.created_at.isoformat(),
-            "agents": {a.value: r.to_dict() for a, r in self.agents.items()},
+            "agents": {name: r.to_dict() for name, r in self.agents.items()},
         }
 
     def to_json(self) -> str:

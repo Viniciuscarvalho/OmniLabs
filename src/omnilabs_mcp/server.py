@@ -1,14 +1,8 @@
-"""OmniLabs MCP Server — No API key required.
+"""OmniLabs MCP Server v0.3 — YAML-driven extensible agents.
 
-Architecture: Claude Code IS the agent. This server provides:
-  - Specialized prompts for each agent role
-  - Session tracking and state management
-  - A live dashboard at http://localhost:3141
-
-Connect to Claude Code with:
-    claude mcp add omnilabs -- uv run --directory /path/to/omnilabs python -m omnilabs_mcp
-
-Then just ask: "Analyze ~/projects/my-app with OmniLabs"
+Adding a new agent = one YAML file.
+  - Contributors: PR a .yaml into agents/builtin/
+  - Users: drop a .yaml into ~/.omnilabs/agents/
 """
 
 from __future__ import annotations
@@ -19,17 +13,18 @@ from typing import Any
 
 from fastmcp import FastMCP
 
-from .agents.prompts import AGENT_PROMPTS
-from .core.models import AgentStatus, AgentType
+from .agents.registry import registry
+from .core.models import AgentStatus
 from .core.store import store
-from .dashboard.app import DASHBOARD_PORT, start_dashboard
+from .dashboard.app import DASHBOARD_PORT, start_dashboard, write_agents_meta
 
 mcp = FastMCP(
     name="OmniLabs",
     instructions=(
-        "4 specialized AI agents for comprehensive project analysis. "
-        "No API key needed — Claude Code is the executor. "
-        "Live dashboard at http://localhost:3141"
+        f"{len(registry)} specialized AI agents for project analysis. "
+        f"Agents: {', '.join(registry.ids())}. "
+        "No API key needed. "
+        f"Dashboard at http://localhost:{DASHBOARD_PORT}"
     ),
 )
 
@@ -40,61 +35,66 @@ mcp = FastMCP(
 
 
 @mcp.tool()
-def start_analysis(repo_path: str) -> dict[str, Any]:
-    """Start a new OmniLabs analysis session for a repository.
-
-    Creates a session and returns the list of available agents.
-    Call get_agent_prompt next for each agent you want to run.
+def start_analysis(
+    repo_path: str,
+    agents: list[str] | None = None,
+) -> dict[str, Any]:
+    """Start a new OmniLabs analysis session.
 
     Args:
-        repo_path: Absolute path to the repository to analyze.
+        repo_path: Path to the repository to analyze.
+        agents: Which agents to run. Defaults to all registered agents.
+                Use list_agents to see available options.
 
     Returns:
-        Session info with available agents and dashboard URL.
+        Session info with selected agents and dashboard URL.
     """
-    session = store.create_session(repo_path)
+    if agents:
+        unknown = [a for a in agents if a not in registry]
+        if unknown:
+            return {"error": f"Unknown agents: {unknown}", "available": registry.ids()}
+        agent_ids = agents
+    else:
+        agent_ids = registry.ids()
+
+    session = store.create_session(repo_path, agent_ids)
     return {
         "session_id": session.session_id,
         "target_repo": repo_path,
-        "agents": [a.value for a in AgentType],
+        "agents": agent_ids,
         "dashboard": f"http://localhost:{DASHBOARD_PORT}",
         "next_step": "Call get_agent_prompt for each agent you want to run.",
     }
 
 
 @mcp.tool()
-def get_agent_prompt(
-    agent: str,
-    session_id: str | None = None,
-) -> dict[str, Any]:
+def get_agent_prompt(agent: str, session_id: str | None = None) -> dict[str, Any]:
     """Get the specialized system prompt for an agent.
 
-    Returns the full expert prompt that YOU (Claude Code) should use
-    as your persona/instructions when analyzing the codebase.
-    Read the entire codebase, then follow this prompt to produce
-    the analysis. No API key needed — you are the agent.
+    You (Claude Code) ARE the agent. Use this prompt as your persona
+    when analyzing the codebase. No API key needed.
 
     Args:
-        agent: One of: business, financial, technical, adversarial.
-        session_id: Session ID. Defaults to current session.
-
-    Returns:
-        The system prompt and instructions for this agent role.
+        agent: Agent ID (e.g. "technical", "security").
+        session_id: Session ID. Defaults to current.
     """
+    spec = registry.get(agent)
+    if spec is None:
+        return {"error": f"Unknown agent '{agent}'.", "available": registry.ids()}
+
     session = store.get_session(session_id) if session_id else store.current_session
     if session is None:
         return {"error": "No active session. Call start_analysis first."}
 
-    agent_type = AgentType(agent.lower())
-    store.mark_running(session.session_id, agent_type)
-
+    store.mark_running(session.session_id, agent)
     return {
-        "agent": agent_type.value,
+        "agent": spec.id,
+        "name": spec.name,
         "session_id": session.session_id,
         "target_repo": session.target_repo,
-        "system_prompt": AGENT_PROMPTS[agent_type],
+        "system_prompt": spec.system_prompt,
         "instructions": (
-            f"You are now the OmniLabs {agent_type.value} agent. "
+            f"You are now the OmniLabs {spec.name} agent ({spec.icon}). "
             f"Read the entire codebase at {session.target_repo}, then follow "
             f"the system prompt above to produce your analysis. "
             f"Every finding MUST cite specific files and code as evidence. "
@@ -110,135 +110,91 @@ def save_agent_result(
     summary: str | None = None,
     session_id: str | None = None,
 ) -> dict[str, Any]:
-    """Save the completed analysis from an agent.
-
-    Call this after you've completed the agent analysis to store
-    the results and update the dashboard.
-
-    Args:
-        agent: Which agent produced this analysis.
-        analysis: The full analysis output.
-        summary: Optional short summary (first ~200 chars used if omitted).
-        session_id: Session ID. Defaults to current session.
-
-    Returns:
-        Confirmation with duration and dashboard link.
-    """
+    """Save completed analysis from an agent."""
     session = store.get_session(session_id) if session_id else store.current_session
     if session is None:
         return {"error": "No active session."}
 
-    agent_type = AgentType(agent.lower())
-
     if summary is None:
         summary = analysis[:200] + "..." if len(analysis) > 200 else analysis
 
-    store.save_result(
-        session_id=session.session_id,
-        agent=agent_type,
-        summary=summary,
-        raw_output=analysis,
-    )
-
-    result = session.agents[agent_type]
+    store.save_result(session.session_id, agent, summary, analysis)
+    r = session.agents.get(agent)
     return {
-        "agent": agent_type.value,
+        "agent": agent,
         "status": "completed",
-        "duration_seconds": result.duration_seconds,
+        "duration_seconds": r.duration_seconds if r else None,
         "dashboard": f"http://localhost:{DASHBOARD_PORT}",
     }
 
 
 @mcp.tool()
-def mark_agent_error(
-    agent: str,
-    error: str,
-    session_id: str | None = None,
-) -> dict[str, Any]:
-    """Mark an agent as failed with an error message.
-
-    Args:
-        agent: Which agent failed.
-        error: Error description.
-        session_id: Session ID. Defaults to current session.
-    """
+def mark_agent_error(agent: str, error: str, session_id: str | None = None) -> dict[str, Any]:
+    """Mark an agent as failed."""
     session = store.get_session(session_id) if session_id else store.current_session
     if session is None:
         return {"error": "No active session."}
-
-    agent_type = AgentType(agent.lower())
-    store.mark_failed(session.session_id, agent_type, error)
-    return {"agent": agent_type.value, "status": "failed", "error": error}
+    store.mark_failed(session.session_id, agent, error)
+    return {"agent": agent, "status": "failed", "error": error}
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# TOOLS — Query results
+# TOOLS — Query
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+@mcp.tool()
+def list_agents(tag: str | None = None) -> list[dict]:
+    """List all registered agents.
+
+    Args:
+        tag: Optional tag filter (e.g. "core", "engineering", "compliance").
+    """
+    agents = registry.all()
+    if tag:
+        agents = [a for a in agents if tag in a.tags]
+    return [a.to_catalog_entry() for a in agents]
 
 
 @mcp.tool()
 def get_session_status(session_id: str | None = None) -> dict[str, Any]:
-    """Check the status of all agents in a session.
-
-    Args:
-        session_id: Session to check. Defaults to current session.
-
-    Returns:
-        Status of each agent with dashboard link.
-    """
+    """Check status of all agents in a session."""
     session = store.get_session(session_id) if session_id else store.current_session
     if session is None:
-        return {"error": "No active session. Call start_analysis first."}
-
-    result = session.to_dict()
-    result["dashboard"] = f"http://localhost:{DASHBOARD_PORT}"
-    return result
+        return {"error": "No active session."}
+    r = session.to_dict()
+    r["dashboard"] = f"http://localhost:{DASHBOARD_PORT}"
+    return r
 
 
 @mcp.tool()
-def get_agent_output(
-    agent: str,
-    session_id: str | None = None,
-) -> dict[str, Any]:
-    """Get the full analysis output from a completed agent.
-
-    Args:
-        agent: One of: business, financial, technical, adversarial.
-        session_id: Session to query. Defaults to current session.
-
-    Returns:
-        Complete analysis text from the agent.
-    """
+def get_agent_output(agent: str, session_id: str | None = None) -> dict[str, Any]:
+    """Get full output from a completed agent."""
     session = store.get_session(session_id) if session_id else store.current_session
     if session is None:
         return {"error": "No active session."}
 
-    agent_type = AgentType(agent.lower())
-    result = session.agents.get(agent_type)
-
-    if result is None:
-        return {"error": f"Agent '{agent}' not found."}
-    if result.status == AgentStatus.IDLE:
-        return {"status": "idle", "message": f"Agent '{agent}' hasn't been run yet."}
-    if result.status == AgentStatus.RUNNING:
-        return {"status": "running", "message": f"Agent '{agent}' is still analyzing."}
+    r = session.agents.get(agent)
+    if r is None:
+        return {"error": f"'{agent}' not in session."}
+    if r.status == AgentStatus.IDLE:
+        return {"status": "idle", "message": f"'{agent}' hasn't run yet."}
+    if r.status == AgentStatus.RUNNING:
+        return {"status": "running", "message": f"'{agent}' is still analyzing."}
 
     return {
-        "agent": agent_type.value,
-        "status": result.status.value,
-        "duration_seconds": result.duration_seconds,
-        "output": result.raw_output,
-        "error": result.error,
+        "agent": agent,
+        "status": r.status.value,
+        "duration_seconds": r.duration_seconds,
+        "output": r.raw_output,
+        "error": r.error,
     }
 
 
 @mcp.tool()
 def list_sessions() -> list[dict]:
     """List all analysis sessions."""
-    sessions = store.list_sessions()
-    if not sessions:
-        return [{"message": "No sessions yet. Use start_analysis to begin."}]
-    return sessions
+    return store.list_sessions() or [{"message": "No sessions yet."}]
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -248,63 +204,18 @@ def list_sessions() -> list[dict]:
 
 @mcp.resource("omnilabs://agents/catalog")
 def agents_catalog() -> str:
-    """Catalog of all available OmniLabs agents."""
-    catalog = {
-        "agents": [
-            {
-                "id": "business",
-                "name": "Business & Product Analysis",
-                "focus": "Product-market fit, competitive landscape, GTM readiness",
-                "key_outputs": [
-                    "Business viability score (1-10)",
-                    "TAM/SAM/SOM",
-                    "Competitive moat",
-                ],
-            },
-            {
-                "id": "financial",
-                "name": "Financial & Cost Analysis",
-                "focus": "TCO modeling, unit economics, infrastructure cost at scale",
-                "key_outputs": [
-                    "TCO at 1K/10K/100K/1M users",
-                    "Break-even analysis",
-                    "Cost optimization",
-                ],
-            },
-            {
-                "id": "technical",
-                "name": "Technical Architecture Review",
-                "focus": "6-dimension scoring: scalability, reliability, maintainability, security, observability, operability",
-                "key_outputs": [
-                    "6-dimension scores",
-                    "Tech debt inventory",
-                    "Production readiness verdict",
-                ],
-            },
-            {
-                "id": "adversarial",
-                "name": "Devil's Advocate Challenge",
-                "focus": "Assumption deconstruction, pre-mortem, competitor counterattack",
-                "key_outputs": [
-                    "Failure post-mortem",
-                    "Assumption risk matrix",
-                    "Uncomfortable questions",
-                ],
-            },
-        ],
-        "dashboard": f"http://localhost:{DASHBOARD_PORT}",
-        "note": "No API key required — Claude Code executes each agent role directly.",
-    }
-    return json.dumps(catalog, indent=2)
+    """Full agent catalog — auto-generated from YAML definitions."""
+    return json.dumps({
+        "agents": [s.to_catalog_entry() for s in registry],
+        "total": len(registry),
+        "how_to_add": "Drop a .yaml file in agents/builtin/ (PR) or ~/.omnilabs/agents/ (local)",
+    }, indent=2)
 
 
 @mcp.resource("omnilabs://session/current")
 def current_session_resource() -> str:
-    """Current analysis session status."""
     session = store.current_session
-    if session is None:
-        return json.dumps({"message": "No active session."})
-    return session.to_json()
+    return session.to_json() if session else json.dumps({"message": "No active session."})
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -314,43 +225,34 @@ def current_session_resource() -> str:
 
 @mcp.prompt()
 def full_analysis(repo_path: str) -> str:
-    """Run a comprehensive 4-agent analysis on a project."""
+    """Run ALL registered agents on a project."""
+    ids = ", ".join(registry.ids())
     return (
-        f"Run a complete OmniLabs analysis on: {repo_path}\n\n"
-        f"1. Call start_analysis with the repo path.\n"
-        f"2. For each agent (business, financial, technical, adversarial):\n"
-        f"   a. Call get_agent_prompt to get the specialized instructions.\n"
-        f"   b. Read the entire codebase.\n"
-        f"   c. Adopt that agent's persona and produce the analysis.\n"
-        f"   d. Call save_agent_result with your output.\n"
-        f"3. After all 4 agents complete, synthesize a unified report:\n"
-        f"   - Top 3 critical findings across all agents\n"
-        f"   - Where agents agree vs. disagree\n"
-        f"   - GO / CONDITIONAL GO / NO-GO recommendation\n"
-        f"   - Top 5 action items in priority order\n"
-        f"\nThe dashboard is live at http://localhost:{DASHBOARD_PORT}\n"
+        f"Complete OmniLabs analysis on: {repo_path}\n\n"
+        f"1. Call start_analysis.\n"
+        f"2. For each agent ({ids}):\n"
+        f"   a. get_agent_prompt -> read codebase -> produce analysis -> save_agent_result\n"
+        f"3. Synthesize unified report with GO / CONDITIONAL GO / NO-GO.\n"
+    )
+
+
+@mcp.prompt()
+def focused_analysis(repo_path: str, agents: str) -> str:
+    """Run specific agents (comma-separated)."""
+    return (
+        f"Focused analysis on: {repo_path}\nAgents: {agents}\n\n"
+        f"1. start_analysis with agents=[{agents}].\n"
+        f"2. Run each -> save results -> synthesize.\n"
     )
 
 
 @mcp.prompt()
 def quick_health_check(repo_path: str) -> str:
-    """Quick technical + adversarial health check."""
+    """Quick technical + adversarial check."""
     return (
         f"Quick health check on: {repo_path}\n\n"
-        f"1. Call start_analysis.\n"
-        f"2. Run only 'technical' and 'adversarial' agents.\n"
-        f"3. Summarize: architecture scores, top 3 risks, urgent action items.\n"
-    )
-
-
-@mcp.prompt()
-def investment_due_diligence(repo_path: str) -> str:
-    """Investment-focused analysis with business + financial agents."""
-    return (
-        f"Investment due diligence on: {repo_path}\n\n"
-        f"1. Call start_analysis.\n"
-        f"2. Run 'business' and 'financial' agents.\n"
-        f"3. Synthesize into an investment memo.\n"
+        f"1. start_analysis with agents=['technical', 'adversarial'].\n"
+        f"2. Run both -> summarize scores, risks, and actions.\n"
     )
 
 
@@ -360,12 +262,19 @@ def investment_due_diligence(repo_path: str) -> str:
 
 
 def main():
-    """Run the OmniLabs MCP server with live dashboard."""
+    # Write agent metadata for dashboard
+    meta = {spec.id: {"icon": spec.icon, "focus": spec.focus, "tags": spec.tags} for spec in registry}
+    write_agents_meta(meta)
+
+    # Start dashboard
     try:
         start_dashboard()
         print(f"OmniLabs dashboard: http://localhost:{DASHBOARD_PORT}", file=sys.stderr)
     except OSError:
         print(f"Dashboard port {DASHBOARD_PORT} in use, skipping.", file=sys.stderr)
+
+    agents = ", ".join(f"{s.icon} {s.id}" for s in registry)
+    print(f"Agents ({len(registry)}): {agents}", file=sys.stderr)
 
     mcp.run()
 
