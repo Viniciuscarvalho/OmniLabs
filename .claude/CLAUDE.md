@@ -6,13 +6,21 @@ OmniLabs is a YAML-driven MCP server that provides multi-perspective strategic a
 
 ## Architecture
 
-- **MCP Server** (`src/omnilabs_mcp/server.py`) — FastMCP-based, exposes tools/resources/prompts
+- **MCP Server** (`src/omnilabs_mcp/server.py`) — FastMCP-based, 3-gate control flow (Discover → Plan → Execute)
 - **Agent Registry** (`src/omnilabs_mcp/agents/registry.py`) — auto-discovers YAML agents from `builtin/` and `~/.omnilabs/agents/`
-- **AgentSpec** (`src/omnilabs_mcp/agents/spec.py`) — the contract every agent fulfills
+- **AgentSpec** (`src/omnilabs_mcp/agents/spec.py`) — the contract every agent fulfills, includes token cost estimation
 - **Session Store** (`src/omnilabs_mcp/core/store.py`) — in-memory + JSON sync for dashboard
-- **Dashboard** (`src/omnilabs_mcp/dashboard/app.py`) — live at `http://localhost:3141`
+- **Dashboard** (`src/omnilabs_mcp/dashboard/app.py`) — live at `http://localhost:3141`, shows cost tier badges
 
-## Built-in Agents (YAML)
+## 3-Gate Control Flow
+
+Nothing runs by default. You choose which agents to execute:
+
+1. **Discover** — `list_agents()`, `recommend_agents(task)`, `list_presets()` to browse what's available
+2. **Plan** — `plan_analysis(repo, agents=[...])` to preview token cost before committing
+3. **Execute** — `start_analysis()` then `run_agent()` one at a time
+
+## Built-in Agents (4 core)
 
 | Agent         | Focus                                          | File                              |
 | ------------- | ---------------------------------------------- | --------------------------------- |
@@ -21,18 +29,36 @@ OmniLabs is a YAML-driven MCP server that provides multi-perspective strategic a
 | `technical`   | Architecture quality across 6 dimensions       | `agents/builtin/technical.yaml`   |
 | `adversarial` | Stress-testing assumptions, blind spots        | `agents/builtin/adversarial.yaml` |
 
+## Marketing Agents (13 via conversion)
+
+Convert from markdown source with: `python scripts/convert_agents.py ~/marketing-agent ~/.omnilabs/agents/`
+
+Agents: seo-strategist, content-strategist, copywriter, social-media-manager, community-manager, product-marketing-manager, gtm-strategist, email-marketing-specialist, lifecycle-marketing-manager, marketing-analyst, cro-specialist, pr-strategist, communications-manager
+
+## Presets
+
+| Preset          | Agents                                                          |
+| --------------- | --------------------------------------------------------------- |
+| `core`          | business, financial, technical, adversarial                     |
+| `health-check`  | technical, adversarial                                          |
+| `due-diligence` | business, financial, adversarial                                |
+| `marketing`     | All agents tagged "marketing"                                   |
+| `gtm`           | business, gtm-strategist, product-marketing-manager, copywriter |
+
 Claude Code subagents (`.claude/agents/*.md`) are also available for direct subagent invocation.
 
 ## How to Use
 
 1. Install: `pip install -e .`
 2. Add to Claude Code MCP settings: `"omnilabs": { "command": "omnilabs-mcp" }`
-3. Paste: `Analyze this project with OmniLabs`
-4. Or run individual agents: `Run just the technical analysis with OmniLabs`
+3. Browse agents: `list_agents()` or `recommend_agents("improve SEO")`
+4. Preview cost: `plan_analysis(repo, agents=["technical"])` or `plan_analysis(repo, preset="core")`
+5. Execute: `start_analysis(repo, agents=[...])` then `run_agent("technical")`
 
 ## Adding Agents
 
 - **Personal**: drop a `.yaml` in `~/.omnilabs/agents/` (overrides built-in if same `id`)
+- **Convert from markdown**: `python scripts/convert_agents.py <source_dir> [target_dir]`
 - **Contribute**: PR a `.yaml` to `src/omnilabs_mcp/agents/builtin/` (see CONTRIBUTING.md)
 
 ## Design Principles

@@ -62,6 +62,10 @@ DASHBOARD_HTML = """<!DOCTYPE html>
   .tags { margin-top: 8px; }
   .tag { font-size: 10px; padding: 2px 6px; border-radius: 4px;
          background: rgba(88,166,255,.1); color: var(--blue); margin-right: 4px; }
+  .tier-light { background: rgba(63,185,80,.15); color: var(--green); }
+  .tier-medium { background: rgba(210,153,34,.15); color: var(--yellow); }
+  .tier-heavy { background: rgba(248,129,73,.15); color: #f88149; }
+  .cost-info { font-size: 11px; margin-top: 6px; display: flex; align-items: center; gap: 8px; }
   .empty { text-align: center; color: var(--muted); padding: 60px 20px; }
   .empty h2 { font-size: 18px; margin-bottom: 8px; color: var(--text); }
   .empty p { font-size: 14px; line-height: 1.6; }
@@ -127,6 +131,11 @@ function render(state) {
       ? `<div class="meta" style="color:var(--red)">${info.error}</div>` : '';
     const tags = (meta.tags || [])
       .map(t => `<span class="tag">${t}</span>`).join('');
+    const costTier = meta.cost_tier || '';
+    const promptTokens = meta.prompt_tokens || 0;
+    const costBadge = costTier
+      ? `<div class="cost-info"><span class="badge tier-${costTier}">${costTier}</span><span style="color:var(--muted)">~${promptTokens.toLocaleString()} tokens</span></div>`
+      : '';
 
     html += `
       <div class="card">
@@ -138,6 +147,7 @@ function render(state) {
           <span>Duration: ${duration}</span>
           <span>${info.has_output ? '\\u2713 Output' : ''}</span>
         </div>
+        ${costBadge}
         ${error}
         <div class="focus">${meta.focus || ''}</div>
         ${tags ? '<div class="tags">' + tags + '</div>' : ''}
