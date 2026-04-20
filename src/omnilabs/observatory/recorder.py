@@ -47,6 +47,13 @@ def _record(event_type: str, payload: dict) -> None:
 
     if event_type == "SessionStart":
         store.ensure_session(claude_session_id, project_path)
+        # Run discovery in the background — never block the hook
+        try:
+            from .discovery import scan, save
+            found = scan(project_path)
+            save(found, project_path)
+        except Exception:
+            pass
         return
 
     if event_type == "Stop":
@@ -70,6 +77,9 @@ def _record(event_type: str, payload: dict) -> None:
         tool_input = payload.get("tool_input") or {}
         args_json = json.dumps(tool_input, separators=(",", ":")) if tool_input else None
         store.insert_pre_tool(run_id, tool_use_id, tool_name, args_json, ts)
+        # Capture file edits from Edit/Write tool_input
+        if tool_name in ("Edit", "Write", "MultiEdit"):
+            _capture_file_edit(run_id, f"evt_{tool_use_id}", tool_name, tool_input)
 
     elif event_type == "PostToolUse":
         tool_use_id = payload.get("tool_use_id", "")
@@ -82,3 +92,44 @@ def _record(event_type: str, payload: dict) -> None:
         else:
             result_summary = None
         store.update_post_tool(tool_use_id, result_summary, ts)
+
+
+def _capture_file_edit(run_id: str, tool_event_id: str, tool_name: str, tool_input: dict) -> None:
+    """Store diff/content for Edit and Write tool calls."""
+    from . import store
+
+    file_path = tool_input.get("file_path", "")
+    if not file_path:
+        return
+
+    if tool_name == "Edit":
+        old_str = tool_input.get("old_string", "")
+        new_str = tool_input.get("new_string", "")
+        import difflib
+        diff = "".join(difflib.unified_diff(
+            old_str.splitlines(keepends=True),
+            new_str.splitlines(keepends=True),
+            fromfile="before",
+            tofile="after",
+            n=2,
+        ))
+        store.insert_file_edit(run_id, tool_event_id, file_path, "edit", diff or "(no diff)")
+
+    elif tool_name == "Write":
+        content = tool_input.get("content", "")
+        store.insert_file_edit(run_id, tool_event_id, file_path, "write", content[:3000])
+
+    elif tool_name == "MultiEdit":
+        edits = tool_input.get("edits") or []
+        for i, edit in enumerate(edits):
+            old_str = edit.get("old_string", "")
+            new_str = edit.get("new_string", "")
+            import difflib
+            diff = "".join(difflib.unified_diff(
+                old_str.splitlines(keepends=True),
+                new_str.splitlines(keepends=True),
+                fromfile="before",
+                tofile="after",
+                n=2,
+            ))
+            store.insert_file_edit(run_id, f"{tool_event_id}_{i}", file_path, "edit", diff)

@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>OmniLabs Observatory</title>
+<style>
+:root {
+  --bg:       #0d1117;
+  --surface:  #161b22;
+  --surface2: #21262d;
+  --border:   #30363d;
+  --text:     #e6edf3;
+  --muted:    #7d8590;
+  --accent:   #a855f7;
+  --blue:     #3b82f6;
+  --green:    #22c55e;
+  --yellow:   #f59e0b;
+  --red:      #ef4444;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text);font:13px/1.4 'SF Mono','Fira Code',monospace;display:flex;flex-direction:column}
+
+/* ── Header ──────────────────────────────── */
+header{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
+.logo{color:var(--accent);font-weight:bold;font-size:14px;letter-spacing:-0.3px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0}
+.dot.live{background:var(--green);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+.status{color:var(--muted);font-size:11px}
+.spacer{flex:1}
+select{background:var(--surface2);color:var(--text);border:1px solid var(--border);padding:3px 8px;border-radius:4px;font:inherit;font-size:11px;cursor:pointer}
+.event-count{color:var(--muted);font-size:11px}
+
+/* ── Layout ─────────────────────────────── */
+.layout{display:flex;flex:1;overflow:hidden}
+
+/* ── Left panel ─────────────────────────── */
+.left{width:210px;flex-shrink:0;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.panel-head{padding:6px 10px;font-size:10px;font-weight:bold;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;border-bottom:1px solid var(--border);background:var(--surface);display:flex;align-items:center;gap:6px}
+.badge{background:var(--surface2);color:var(--muted);font-size:9px;padding:1px 5px;border-radius:8px}
+.list{overflow-y:auto;flex:1}
+.item{display:flex;align-items:center;gap:6px;padding:5px 10px;font-size:11px;color:var(--muted)}
+.item.on{color:var(--text)}
+.item.indent{padding-left:20px}
+.item-dot{width:6px;height:6px;border-radius:50%;background:var(--muted);flex-shrink:0}
+.item-dot.run{background:var(--green)}
+.item-dot.done{background:var(--blue)}
+.item-tag{margin-left:auto;font-size:9px;padding:1px 4px;border-radius:2px;background:var(--surface2);color:var(--muted);white-space:nowrap}
+.divider{border-top:1px solid var(--border)}
+
+/* ── Right panel ────────────────────────── */
+.right{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.tabs{display:flex;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
+.tab{padding:7px 14px;font-size:11px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent}
+.tab.on{color:var(--text);border-bottom-color:var(--accent)}
+.tab:hover:not(.on){color:var(--text)}
+.pane{flex:1;overflow:hidden;display:none;flex-direction:column}
+.pane.on{display:flex}
+
+/* ── Live stream ────────────────────────── */
+.stream{flex:1;overflow-y:auto;padding:4px 0}
+.erow{display:flex;align-items:baseline;gap:8px;padding:2px 12px;font-size:11px;border-bottom:1px solid rgba(48,54,61,.4)}
+.erow.new{animation:flash .4s ease}
+@keyframes flash{from{background:rgba(168,85,247,.08)}to{background:transparent}}
+.et{color:var(--muted);width:72px;flex-shrink:0}
+.en{color:var(--accent);width:86px;flex-shrink:0;font-weight:bold}
+.ea{color:var(--blue);width:96px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.eg{color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ed{color:var(--green);width:48px;text-align:right;font-size:10px;flex-shrink:0}
+.stream-head{display:flex;gap:8px;padding:3px 12px;font-size:10px;color:var(--muted);background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0}
+.stream-head span:nth-child(1){width:72px}
+.stream-head span:nth-child(2){width:86px}
+.stream-head span:nth-child(3){width:96px}
+.stream-head span:nth-child(4){flex:1}
+.stream-head span:nth-child(5){width:48px;text-align:right}
+
+/* ── Timeline ───────────────────────────── */
+.tl-wrap{flex:1;overflow:auto;padding:12px 16px}
+.gantt-svg{min-width:600px}
+
+/* ── Replay ─────────────────────────────── */
+.replay-wrap{flex:1;display:flex;flex-direction:column;gap:0;overflow:hidden}
+.scrub-bar{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
+.scrub-bar input[type=range]{flex:1;accent-color:var(--accent)}
+.scrub-time{color:var(--muted);font-size:11px;width:90px}
+.replay-edits{border-top:1px solid var(--border);flex-shrink:0;max-height:200px;overflow-y:auto}
+.diff-file{padding:4px 12px;font-size:11px;color:var(--yellow);background:var(--surface)}
+.diff-block{padding:4px 12px;font-size:10px;white-space:pre;overflow-x:auto;background:var(--bg)}
+.diff-add{color:var(--green)}
+.diff-del{color:var(--red)}
+.diff-ctx{color:var(--muted)}
+
+/* ── Empty state ────────────────────────── */
+.empty{padding:28px 16px;text-align:center;color:var(--muted);line-height:1.8}
+.empty small{font-size:10px}
+
+/* ── Scrollbar ──────────────────────────── */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">⬡ OmniLabs</div>
+  <div class="dot" id="dot"></div>
+  <span class="status" id="status">Connecting…</span>
+  <div class="spacer"></div>
+  <span class="event-count" id="evtCount"></span>
+  <select id="sessSelect" onchange="onSession(this.value)">
+    <option value="live">⬤ Live</option>
+  </select>
+</header>
+
+<div class="layout">
+
+  <!-- Left: agent tree + discovery -->
+  <div class="left">
+    <div class="panel-head">Active <span class="badge" id="runCount">0</span></div>
+    <div class="list" id="runList"><div class="empty">No agents running</div></div>
+    <div class="divider"></div>
+    <div class="panel-head">Discovered <span class="badge" id="discCount">0</span></div>
+    <div class="list" id="discList"></div>
+  </div>
+
+  <!-- Right: tabs -->
+  <div class="right">
+    <div class="tabs">
+      <div class="tab on"  onclick="tab('live')">Live</div>
+      <div class="tab"     onclick="tab('timeline')">Timeline</div>
+      <div class="tab"     onclick="tab('replay')">Replay</div>
+    </div>
+
+    <!-- Live -->
+    <div class="pane on" id="pane-live">
+      <div class="stream-head">
+        <span>Time</span><span>Tool</span><span>Agent</span><span>Args</span><span>Dur</span>
+      </div>
+      <div class="stream" id="stream">
+        <div class="empty">Waiting for events…<br><small>Hooks active? Run: omnilabs hooks install --project</small></div>
+      </div>
+    </div>
+
+    <!-- Timeline -->
+    <div class="pane" id="pane-timeline">
+      <div class="tl-wrap" id="ganttWrap">
+        <div class="empty">Select a past session from the header dropdown</div>
+      </div>
+    </div>
+
+    <!-- Replay -->
+    <div class="pane" id="pane-replay">
+      <div class="replay-wrap">
+        <div class="scrub-bar">
+          <input type="range" id="scrubber" min="0" max="100" value="100" oninput="scrub(+this.value)">
+          <span class="scrub-time" id="scrubTime">—</span>
+        </div>
+        <div class="stream" id="replayStream">
+          <div class="empty">Select a session then scrub the timeline</div>
+        </div>
+        <div class="replay-edits" id="replayEdits"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ────────────────────────────────────────────────
+let activeTab = 'live';
+let liveEvents = [];
+let sessEvents = [];
+let sessRuns   = [];
+let sessEdits  = [];
+let agents     = {};   // claude_agent_id → {type, lastSeen}
+let totalEvts  = 0;
+let projectPath = '';
+
+// ── Tabs ─────────────────────────────────────────────────
+function tab(name) {
+  document.querySelectorAll('.tab').forEach((el, i) => {
+    el.classList.toggle('on', ['live','timeline','replay'][i] === name);
+  });
+  document.querySelectorAll('.pane').forEach(el => {
+    el.classList.toggle('on', el.id === 'pane-' + name);
+  });
+  activeTab = name;
+  if (name === 'timeline') drawGantt();
+  if (name === 'replay')   renderReplay(+document.getElementById('scrubber').value);
+}
+
+// ── SSE ──────────────────────────────────────────────────
+let sse;
+function connectSSE() {
+  if (sse) sse.close();
+  sse = new EventSource('/api/live');
+  sse.onopen = () => {
+    setStatus('live', 'Live');
+  };
+  sse.onmessage = e => {
+    const evt = JSON.parse(e.data);
+    liveEvents.push(evt);
+    if (liveEvents.length > 1000) liveEvents.shift();
+    totalEvts++;
+    document.getElementById('evtCount').textContent = totalEvts + ' events';
+    updateRunTree(evt);
+    if (activeTab === 'live') appendRow(evt, 'stream', true);
+  };
+  sse.onerror = () => {
+    setStatus('idle', 'Disconnected');
+    setTimeout(connectSSE, 3000);
+  };
+}
+
+function setStatus(cls, label) {
+  const dot = document.getElementById('dot');
+  dot.className = 'dot' + (cls === 'live' ? ' live' : '');
+  document.getElementById('status').textContent = label;
+}
+
+// ── Row renderer ─────────────────────────────────────────
+function appendRow(evt, containerId, isNew) {
+  const el = document.getElementById(containerId);
+  const empty = el.querySelector('.empty');
+  if (empty) empty.remove();
+
+  const d  = new Date(evt.started_at * 1000);
+  const ts = d.toTimeString().slice(0,8) + '.' +
+             String(Math.round((evt.started_at % 1) * 1000)).padStart(3,'0');
+  const agent = (evt.agent_type || evt.claude_agent_id || 'root').slice(0, 13);
+  const args  = fmtArgs(evt.args_json);
+  const dur   = evt.duration_ms != null ? Math.round(evt.duration_ms) + 'ms' : '';
+
+  const row = document.createElement('div');
+  row.className = 'erow' + (isNew ? ' new' : '');
+  row.innerHTML =
+    `<span class="et">${ts}</span>` +
+    `<span class="en">${h(evt.tool_name)}</span>` +
+    `<span class="ea">[${h(agent)}]</span>` +
+    `<span class="eg">${h(args)}</span>` +
+    `<span class="ed">${dur}</span>`;
+  el.appendChild(row);
+  if (containerId === 'stream') el.scrollTop = el.scrollHeight;
+}
+
+function fmtArgs(json) {
+  if (!json) return '';
+  try {
+    const o = JSON.parse(json);
+    return o.file_path || o.command || o.pattern || o.description ||
+           o.query || JSON.stringify(o).slice(0, 80);
+  } catch { return String(json).slice(0, 80); }
+}
+
+// ── Run tree ─────────────────────────────────────────────
+function updateRunTree(evt) {
+  const id = evt.claude_agent_id || '__root__';
+  if (!agents[id]) agents[id] = {type: evt.agent_type, lastSeen: evt.started_at};
+  else agents[id].lastSeen = evt.started_at;
+  renderRunTree();
+}
+
+function renderRunTree() {
+  const list = document.getElementById('runList');
+  const all  = Object.entries(agents);
+  document.getElementById('runCount').textContent = all.length;
+  if (!all.length) { list.innerHTML = '<div class="empty">No agents running</div>'; return; }
+  list.innerHTML = '';
+  for (const [id, a] of all.sort((x,y) => x[0] === '__root__' ? -1 : 1)) {
+    const age  = Date.now()/1000 - a.lastSeen;
+    const dot  = age < 8 ? 'run' : 'done';
+    const lbl  = id === '__root__' ? 'root' : (a.type || id).slice(0, 18);
+    const indent = id !== '__root__' ? ' indent' : '';
+    const item = document.createElement('div');
+    item.className = `item on${indent}`;
+    item.innerHTML = `<span class="item-dot ${dot}"></span><span>${h(lbl)}</span>` +
+      (a.type ? `<span class="item-tag">${h(a.type.slice(0,8))}</span>` : '');
+    list.appendChild(item);
+  }
+}
+
+// ── Sessions ─────────────────────────────────────────────
+async function loadSessions() {
+  const res  = await fetch('/api/sessions').catch(() => null);
+  if (!res || !res.ok) return;
+  const list = await res.json();
+  const sel  = document.getElementById('sessSelect');
+  const cur  = sel.value;
+  sel.innerHTML = '<option value="live">⬤ Live</option>';
+  for (const s of list) {
+    const d   = new Date(s.started_at * 1000);
+    const lbl = d.toLocaleDateString() + ' ' + d.toTimeString().slice(0,8) +
+                ' [' + s.status + ']';
+    const opt = document.createElement('option');
+    opt.value = s.id; opt.textContent = lbl;
+    sel.appendChild(opt);
+  }
+  if (cur !== 'live') sel.value = cur;
+}
+
+async function onSession(id) {
+  if (id === 'live') { sessEvents=[]; sessRuns=[]; sessEdits=[]; return; }
+  const [eRes, rRes, dRes] = await Promise.all([
+    fetch(`/api/sessions/${id}/events?limit=2000`),
+    fetch(`/api/sessions/${id}/runs`),
+    fetch(`/api/sessions/${id}/edits`),
+  ]);
+  sessEvents = await eRes.json();
+  sessRuns   = await rRes.json();
+  sessEdits  = await dRes.json();
+  if (activeTab === 'timeline') drawGantt();
+  if (activeTab === 'replay')   renderReplay(100);
+}
+
+// ── Discovered agents ────────────────────────────────────
+async function loadDiscovered() {
+  const infoRes = await fetch('/api/info').catch(() => null);
+  if (!infoRes || !infoRes.ok) return;
+  const info = await infoRes.json();
+  projectPath = info.project_path;
+
+  const res = await fetch('/api/discovered?project=' + encodeURIComponent(projectPath))
+    .catch(() => null);
+  if (!res || !res.ok) return;
+  const items = await res.json();
+  document.getElementById('discCount').textContent = items.length;
+  const list = document.getElementById('discList');
+  list.innerHTML = '';
+  for (const it of items.slice(0, 30)) {
+    const el = document.createElement('div');
+    el.className = 'item';
+    el.innerHTML = `<span class="item-dot"></span><span>${h(it.agent_id)}</span>` +
+      `<span class="item-tag">${h(it.source_type.slice(0,10))}</span>`;
+    list.appendChild(el);
+  }
+}
+
+// ── Gantt timeline ───────────────────────────────────────
+function drawGantt() {
+  const wrap = document.getElementById('ganttWrap');
+  if (!sessRuns.length) {
+    wrap.innerHTML = '<div class="empty">No agent runs in this session</div>'; return;
+  }
+
+  const LW = 130, CW = 560, RH = 26, PAD = 12;
+  const tMin = Math.min(...sessRuns.map(r => r.started_at));
+  const tMax = Math.max(...sessRuns.map(r => r.ended_at || r.started_at + 0.5));
+  const span = tMax - tMin || 1;
+
+  const H = sessRuns.length * RH + PAD * 2;
+  let rows = '';
+
+  sessRuns.forEach((run, i) => {
+    const y    = PAD + i * RH;
+    const lbl  = (run.agent_type || run.claude_agent_id || 'root').slice(0, 16);
+    const col  = run.claude_agent_id === '__root__' ? '#a855f7' : '#3b82f6';
+    const x0   = LW + ((run.started_at - tMin) / span) * CW;
+    const x1   = LW + (((run.ended_at || tMax) - tMin) / span) * CW;
+    const bw   = Math.max(x1 - x0, 4);
+
+    rows += `<text x="${LW - 6}" y="${y + 17}" text-anchor="end"
+      fill="#7d8590" font-size="11" font-family="monospace">${h(lbl)}</text>
+    <rect x="${x0}" y="${y+4}" width="${bw}" height="${RH-8}"
+      fill="${col}" opacity=".65" rx="2" title="${h(lbl)}"/>`;
+
+    // tool event ticks
+    sessEvents
+      .filter(e => (e.claude_agent_id || '__root__') === (run.claude_agent_id || '__root__'))
+      .forEach(evt => {
+        const ex = LW + ((evt.started_at - tMin) / span) * CW;
+        rows += `<rect x="${ex}" y="${y+4}" width="2" height="${RH-8}"
+          fill="rgba(255,255,255,.3)"/>`;
+      });
+  });
+
+  // Time axis
+  const ts0 = new Date(tMin * 1000).toTimeString().slice(0, 8);
+  const ts1 = new Date(tMax * 1000).toTimeString().slice(0, 8);
+  rows += `<line x1="${LW}" y1="${PAD}" x2="${LW}" y2="${H-PAD}" stroke="#30363d"/>
+    <text x="${LW+2}" y="${H-2}" fill="#7d8590" font-size="9">${ts0}</text>
+    <text x="${LW+CW-2}" y="${H-2}" text-anchor="end" fill="#7d8590" font-size="9">${ts1}</text>`;
+
+  wrap.innerHTML = `<svg class="gantt-svg" height="${H}"
+    style="min-width:${LW+CW+20}px">${rows}</svg>`;
+}
+
+// ── Replay ───────────────────────────────────────────────
+function scrub(pct) { renderReplay(pct); }
+
+function renderReplay(pct) {
+  if (!sessEvents.length) return;
+  const times  = sessEvents.map(e => e.started_at);
+  const tMin   = Math.min(...times);
+  const tMax   = Math.max(...times);
+  const cutoff = tMin + (tMax - tMin) * (pct / 100);
+
+  document.getElementById('scrubTime').textContent =
+    new Date(cutoff * 1000).toTimeString().slice(0, 8);
+
+  // Event list
+  const stream = document.getElementById('replayStream');
+  stream.innerHTML = '';
+  const visible = sessEvents.filter(e => e.started_at <= cutoff).slice(-120);
+  for (const evt of [...visible].reverse()) appendRow(evt, 'replayStream', false);
+
+  // File diffs up to this point
+  const editsEl = document.getElementById('replayEdits');
+  const relevantEdits = sessEdits.filter(ed => {
+    const evt = sessEvents.find(e => `evt_${e.tool_use_id}` === ed.tool_event_id);
+    return evt && evt.started_at <= cutoff;
+  });
+  if (!relevantEdits.length) { editsEl.innerHTML = ''; return; }
+
+  // Group by file path, show last diff for each
+  const byFile = {};
+  for (const ed of relevantEdits) byFile[ed.file_path] = ed;
+  editsEl.innerHTML = '';
+  for (const [fp, ed] of Object.entries(byFile)) {
+    const hdr = document.createElement('div');
+    hdr.className = 'diff-file';
+    hdr.textContent = `${ed.edit_type.toUpperCase()}  ${fp}`;
+    editsEl.appendChild(hdr);
+
+    const body = document.createElement('div');
+    body.className = 'diff-block';
+    const lines = (ed.diff_text || '').split('\n');
+    body.innerHTML = lines.slice(0, 60).map(l => {
+      const cls = l.startsWith('+') ? 'diff-add' :
+                  l.startsWith('-') ? 'diff-del' : 'diff-ctx';
+      return `<span class="${cls}">${h(l)}</span>`;
+    }).join('\n');
+    editsEl.appendChild(body);
+  }
+}
+
+// ── Utils ─────────────────────────────────────────────────
+function h(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Boot ─────────────────────────────────────────────────
+connectSSE();
+loadSessions();
+loadDiscovered();
+setInterval(loadSessions, 20000);
+setInterval(loadDiscovered, 60000);
+</script>
+</body>
+</html>

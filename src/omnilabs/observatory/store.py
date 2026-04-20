@@ -240,3 +240,70 @@ def count_events(session_id: str) -> int:
             (session_id,),
         ).fetchone()
         return row["n"] if row else 0
+
+
+def list_agent_runs(session_id: str) -> list[dict]:
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT * FROM agent_runs WHERE session_id=? ORDER BY started_at",
+            (session_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def insert_file_edit(
+    run_id: str,
+    tool_event_id: str,
+    file_path: str,
+    edit_type: str,
+    diff_text: str | None,
+) -> None:
+    import secrets
+    edit_id = f"edit_{int(__import__('time').time() * 1000)}_{secrets.token_hex(3)}"
+    with _connect() as conn:
+        conn.execute(
+            """INSERT OR IGNORE INTO file_edits
+               (id, run_id, tool_event_id, file_path, edit_type, diff_text)
+               VALUES (?,?,?,?,?,?)""",
+            (edit_id, run_id, tool_event_id, file_path, edit_type, diff_text),
+        )
+
+
+def list_file_edits(session_id: str) -> list[dict]:
+    with _connect() as conn:
+        rows = conn.execute(
+            """SELECT fe.* FROM file_edits fe
+               JOIN agent_runs ar ON fe.run_id = ar.id
+               WHERE ar.session_id = ?
+               ORDER BY fe.rowid""",
+            (session_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_discovered(project_path: str) -> list[dict]:
+    with _connect() as conn:
+        rows = conn.execute(
+            """SELECT * FROM discovered_agents WHERE project_path=?
+               ORDER BY source_type, agent_id""",
+            (project_path,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_events_since(since_ts: float) -> list[dict]:
+    """Fetch tool events newer than since_ts for SSE streaming."""
+    with _connect() as conn:
+        rows = conn.execute(
+            """SELECT te.id, te.tool_name, te.args_json, te.result_summary,
+                      te.started_at, te.ended_at, te.duration_ms, te.tool_use_id,
+                      ar.claude_agent_id, ar.agent_type, ar.session_id,
+                      s.project_path
+               FROM tool_events te
+               JOIN agent_runs ar ON te.run_id = ar.id
+               JOIN sessions s ON ar.session_id = s.id
+               WHERE te.started_at > ?
+               ORDER BY te.started_at ASC LIMIT 200""",
+            (since_ts,),
+        ).fetchall()
+        return [dict(r) for r in rows]
