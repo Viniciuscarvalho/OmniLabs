@@ -1,109 +1,111 @@
-# OmniLabs — Extensible MCP Server for Multi-Perspective Analysis
+# OmniLabs — Agent Observatory for Claude Code
 
 ## What is OmniLabs?
 
-OmniLabs is a YAML-driven MCP server that provides multi-perspective strategic analysis for any project. It auto-discovers agent definitions from YAML files and exposes them as MCP tools that Claude Code orchestrates to analyze your codebase.
+OmniLabs is a **hook-based agent observatory**: it discovers every agent, skill, and subagent
+in your Claude Code project, captures every tool call via Claude Code hooks, and shows it all
+live in a local dashboard at `http://localhost:3141`.
+
+No MCP configuration required. Install as a Python package and run `/omnilabs watch`.
 
 ## Architecture
 
-- **MCP Server** (`src/omnilabs_mcp/server.py`) — FastMCP-based, 3-gate control flow (Discover → Plan → Execute)
-- **Agent Registry** (`src/omnilabs_mcp/agents/registry.py`) — auto-discovers YAML agents from `builtin/` and `~/.omnilabs/agents/`
-- **AgentSpec** (`src/omnilabs_mcp/agents/spec.py`) — the contract every agent fulfills, includes token cost estimation
-- **Session Store** (`src/omnilabs_mcp/core/store.py`) — in-memory + JSON sync for dashboard
-- **Dashboard** (`src/omnilabs_mcp/dashboard/app.py`) — live at `http://localhost:3141`, shows cost tier badges
+```
+src/omnilabs/
+├── cli.py                      # omnilabs CLI entry point
+├── observatory/
+│   ├── store.py                # SQLite store (~/.omnilabs/db.sqlite, WAL mode)
+│   ├── recorder.py             # Called by hooks: omnilabs record <Event>
+│   ├── hooks.py                # Install/uninstall hooks in settings.json (idempotent, .bak)
+│   ├── discovery.py            # Scan .claude/agents/, .claude/skills/, packs
+│   └── server.py               # HTTP + SSE server at :3141
+├── dashboard/
+│   └── index.html              # Live / Timeline / Replay dashboard
+├── agents/
+│   ├── spec.py                 # AgentSpec dataclass
+│   └── registry.py             # Pack discovery
+├── packs/
+│   └── strategic_analysis/     # business / financial / technical / adversarial YAMLs
+└── skill/
+    └── SKILL.md                # /omnilabs Claude Code skill
+```
 
-## 3-Gate Control Flow
+## Capture Flow
 
-Nothing runs by default. You choose which agents to execute:
+1. Claude Code fires a hook (e.g. `PreToolUse`)
+2. Hook calls `omnilabs record PreToolUse` (stdin = JSON payload)
+3. Recorder writes to `~/.omnilabs/db.sqlite` in <50ms
+4. Dashboard SSE endpoint polls for new rows and streams them to the browser
 
-1. **Discover** — `list_agents()`, `recommend_agents(task)`, `list_presets()` to browse what's available
-2. **Plan** — `plan_analysis(repo, agents=[...])` to preview token cost before committing
-3. **Execute** — `start_analysis()` then `run_agent()` one at a time
+## Hook Events Captured
 
-## Built-in Agents (4 core)
+| Event              | What it records                                   |
+| ------------------ | ------------------------------------------------- |
+| `SessionStart`     | New session + project path + agent discovery      |
+| `PreToolUse`       | Tool name, args, agent_id, tool_use_id            |
+| `PostToolUse`      | Result summary, computed duration via tool_use_id |
+| `Stop`             | Session close                                     |
+| `UserPromptSubmit` | Session marker                                    |
 
-| Agent         | Focus                                          | File                              |
-| ------------- | ---------------------------------------------- | --------------------------------- |
-| `business`    | Product-market fit, competitive landscape, GTM | `agents/builtin/business.yaml`    |
-| `financial`   | Infrastructure costs, TCO, build-vs-buy        | `agents/builtin/financial.yaml`   |
-| `technical`   | Architecture quality across 6 dimensions       | `agents/builtin/technical.yaml`   |
-| `adversarial` | Stress-testing assumptions, blind spots        | `agents/builtin/adversarial.yaml` |
+## SQLite Schema
 
-## Marketing Agents (13 via conversion)
-
-Convert from markdown source with: `python scripts/convert_agents.py ~/marketing-agent ~/.omnilabs/agents/`
-
-Agents: seo-strategist, content-strategist, copywriter, social-media-manager, community-manager, product-marketing-manager, gtm-strategist, email-marketing-specialist, lifecycle-marketing-manager, marketing-analyst, cro-specialist, pr-strategist, communications-manager
-
-## Presets
-
-| Preset          | Agents                                                          |
-| --------------- | --------------------------------------------------------------- |
-| `core`          | business, financial, technical, adversarial                     |
-| `health-check`  | technical, adversarial                                          |
-| `due-diligence` | business, financial, adversarial                                |
-| `marketing`     | All agents tagged "marketing"                                   |
-| `gtm`           | business, gtm-strategist, product-marketing-manager, copywriter |
-
-Claude Code subagents (`.claude/agents/*.md`) are also available for direct subagent invocation.
+```
+sessions         — id, project_path, claude_session_id, started_at, ended_at
+agent_runs       — id, session_id, claude_agent_id, agent_type, started_at, ended_at
+tool_events      — id, run_id, tool_use_id, tool_name, args_json, result_summary, duration_ms
+file_edits       — id, run_id, file_path, edit_type, diff_text
+discovered_agents — project_path, agent_id, source_type, source_path, last_seen
+```
 
 ## How to Use
 
-1. Install: `pip install -e .`
-2. Add to Claude Code MCP settings: `"omnilabs": { "command": "omnilabs-mcp" }`
-3. Browse agents: `list_agents()` or `recommend_agents("improve SEO")`
-4. Preview cost: `plan_analysis(repo, agents=["technical"])` or `plan_analysis(repo, preset="core")`
-5. Execute: `start_analysis(repo, agents=[...])` then `run_agent("technical")`
+```bash
+pip install -e .
+omnilabs hooks install --project   # installs capture hooks
+# restart Claude Code
+omnilabs watch                     # starts server + opens http://localhost:3141
+```
 
-## Adding Agents
+### CLI Reference
 
-- **Personal**: drop a `.yaml` in `~/.omnilabs/agents/` (overrides built-in if same `id`)
-- **Convert from markdown**: `python scripts/convert_agents.py <source_dir> [target_dir]`
-- **Contribute**: PR a `.yaml` to `src/omnilabs_mcp/agents/builtin/` (see CONTRIBUTING.md)
+```
+omnilabs watch                     # start observatory dashboard
+omnilabs hooks install --project   # install capture hooks
+omnilabs hooks uninstall --project # restore original settings.json
+omnilabs hooks status              # check hook installation
+omnilabs agents list               # show discovered agents/skills/packs
+omnilabs pack list                 # show available packs
+omnilabs pack install <name>       # install pack agents into .claude/agents/
+omnilabs sessions list             # list captured sessions
+omnilabs events list <session>     # list tool events for a session
+omnilabs gc --older-than 30d       # prune old events
+```
+
+## Strategic-Analysis Pack
+
+The 4 core OmniLabs analysis agents ship as an optional pack in
+`src/omnilabs/packs/strategic_analysis/`. Install them with:
+
+```bash
+omnilabs pack install strategic-analysis
+```
+
+This drops subagent markdown files into `.claude/agents/` so they are
+discoverable by the observatory and invocable via Claude Code's Task() tool.
 
 ## Design Principles
 
-- **Code-first analysis**: Agents read the actual codebase, not just documentation
-- **Evidence over opinion**: Every finding must be traceable to code or data
-- **Constructive challenge**: The devil's advocate strengthens ideas, doesn't kill them
-- **Actionable output**: Every report includes a clear decision and implementation roadmap
-- **Language-agnostic**: Works with any tech stack — agents adapt to what they find
+- **No external dependencies** — stdlib only (sqlite3, http.server, json, argparse)
+- **Non-blocking hooks** — recorder always outputs `{"decision":"approve"}` before any DB I/O
+- **Safe hook installer** — idempotent, `.bak` sidecar, clean uninstall
+- **Code-first discovery** — scans the actual project structure, not a manifest
 
-## Evaluation Framework
+## Knowledge Base Search Protocol
 
-OmniLabs includes evals to validate agent output quality. See `docs/evaluation-guide.md` for details.
-
-- **Code-based graders**: `evaluation/graders/code-based/grade-<agent>.sh` — deterministic structural validation
-- **Model-based rubrics**: `evaluation/graders/model-based/rubric-<agent>.md` — LLM-as-Judge quality scoring
-- **Tasks**: `evaluation/tasks/<agent>/task-*.md` — test scenarios with expected behaviors
-- **Golden datasets**: `evaluation/datasets/golden-*.md` — reference project descriptions
-- **Run evals**: `bash evaluation/harness/run-all.sh`
-- **Docs**: `docs/architecture.md`, `docs/contributing-evals.md`, `docs/evaluation-guide.md`
-
-## Continuous Learning
-
-OmniLabs includes an optional continuous learning system that captures and retrieves knowledge across sessions. See `docs/continuous-learning.md` for the full guide.
-
-### Knowledge Base Search Protocol
-
-**Before starting any analysis task**, search the knowledge base for relevant prior findings:
+Before starting any analysis task, search the knowledge base for relevant prior findings:
 
 1. Use `mcp__docs-mcp-server__search_docs` with library `omnilabs-memories`
-2. Search with 2-3 keyword variations related to the current task
-3. Review the top results for applicable patterns, decisions, or findings
+2. Search with 2-3 keyword variations
+3. Review top results for applicable patterns
 
-### Knowledge Capture Protocol
-
-After completing analysis work, evaluate whether reusable knowledge was produced:
-
-- **Analysis patterns**: Recurring approaches to market sizing, cost modeling, architecture scoring
-- **Eval findings**: Insights about agent behavior, grader false positives/negatives
-- **Agent behavior**: Prompt engineering discoveries, output format nuances
-- **Framework decisions**: Architecture choices, convention changes
-
-Use the `continuous-learning` skill to capture memories to `.claude/memories/`.
-
-### Prerequisites
-
-- **Ollama** running locally with `nomic-embed-text` model
-- The system degrades gracefully if Ollama is unavailable
+Use the `continuous-learning` skill to capture reusable knowledge to `.claude/memories/`.

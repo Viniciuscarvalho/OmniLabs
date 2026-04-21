@@ -8,6 +8,15 @@
             "command": "bash .claude/hooks/ollama-status.sh"
           }
         ]
+      },
+      {
+        "_omnilabs": true,
+        "hooks": [
+          {
+            "type": "command",
+            "command": "omnilabs record SessionStart"
+          }
+        ]
       }
     ],
     "PreToolUse": [
@@ -16,6 +25,48 @@
           {
             "type": "command",
             "command": "bash .claude/hooks/continuous-learning-activator.sh"
+          }
+        ]
+      },
+      {
+        "_omnilabs": true,
+        "hooks": [
+          {
+            "type": "command",
+            "command": "omnilabs record PreToolUse"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "_omnilabs": true,
+        "hooks": [
+          {
+            "type": "command",
+            "command": "omnilabs record PostToolUse"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "_omnilabs": true,
+        "hooks": [
+          {
+            "type": "command",
+            "command": "omnilabs record Stop"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "_omnilabs": true,
+        "hooks": [
+          {
+            "type": "command",
+            "command": "omnilabs record UserPromptSubmit"
           }
         ]
       }
